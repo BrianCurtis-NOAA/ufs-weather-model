@@ -157,13 +157,15 @@ class Job:
     def run_commands(self, commands_with_cwd):
         logger = logging.getLogger('JOB/RUN_COMMANDS')
         for command, in_cwd in commands_with_cwd:
-            logger.info(f'Running "{command}" in location "{in_cwd}"')
+            logger.info(f'Running "{command}"')
+            logger.debug(f'in location "{in_cwd}"'')
             try:
                 output = subprocess.Popen(command, shell=True, cwd=in_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 out, err = output.communicate()
                 out = [] if not out else out.decode('utf8').split('\n')
-                err = [] if not err else err.decode('utf8').split('\n')
+                logger.info(out)
             except Exception as e:
+                err = [] if not err else err.decode('utf8').split('\n')
                 self.job_failed(logger, f'Command {command}', exception=e, out=out, err=err)
             else:
                 logger.info(f'Finished running: {command}')
@@ -201,9 +203,9 @@ class Job:
         logger.info('Finished repo clone')
         return self.pr_repo_loc
 
-    def execute_command(self):
+    def execute_action(self):
         ''' Run the command associted with the label used to initiate this job '''
-        logger = logging.getLogger('JOB/EXECUTE_COMMAND')
+        logger = logging.getLogger('JOB/EXECUTE_ACTION')
         compiler = self.preq_dict['compiler']
         logger.info(f'Compiler being used for command is {compiler}')
         command = self.preq_dict["action"]["command"]
@@ -238,8 +240,8 @@ class Job:
                 self.remove_pr_label()
                 logger.info('Calling clone_pr_repo')
                 self.clone_pr_repo()
-                logger.info('Calling execute_command')
-                self.execute_command()
+                logger.info('Calling execute_action')
+                self.execute_action()
             except Exception as e:
                 self.job_failed(logger, f'run()', exception=e, STDOUT=False)
         else:
