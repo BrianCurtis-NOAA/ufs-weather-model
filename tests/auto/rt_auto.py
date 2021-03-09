@@ -198,7 +198,9 @@ class Job:
         create_repo_commands = [
             [f'mkdir -p "{repo_dir_str}"', self.machine['workdir']],
             [f'git clone -b {self.branch} {git_url}', repo_dir_str],
-            [f'git submodule update --init --recursive', f'{repo_dir_str}/{repo_name}']
+            [f'git submodule update --init --recursive', f'{repo_dir_str}/{repo_name}'],
+            [f'git config user.email "brian.curtis@noaa.gov"', f'{repo_dir_str}/{repo_name}'],
+            [f'git config user.name "Brian Curtis"', f'{repo_dir_str}/{repo_name}']
         ]
 
         self.run_commands(logger, create_repo_commands)
