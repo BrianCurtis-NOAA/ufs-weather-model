@@ -139,6 +139,11 @@ class Job:
         self.preq_dict = preq_dict
         self.ghinterface_obj = ghinterface_obj
         self.machine = machine
+        self.comment_text = ''
+        self.failed_tests = []
+
+    def comment_text_append(self, newtext):
+            self.comment_text += f'{newtext}\n'
 
     def remove_pr_label(self):
         ''' Removes the pull request label that initiated the job run from PR '''
@@ -154,11 +159,10 @@ class Job:
 
         return label_match
 
-    def run_commands(self, commands_with_cwd):
-        logger = logging.getLogger('JOB/RUN_COMMANDS')
+    def run_commands(self, logger, commands_with_cwd):
         for command, in_cwd in commands_with_cwd:
             logger.info(f'Running "{command}"')
-            logger.debug(f'in location "{in_cwd}"'')
+            logger.debug(f'in location "{in_cwd}"')
             try:
                 output = subprocess.Popen(command, shell=True, cwd=in_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 out, err = output.communicate()
@@ -169,7 +173,6 @@ class Job:
                 self.job_failed(logger, f'Command {command}', exception=e, out=out, err=err)
             else:
                 logger.info(f'Finished running: {command}')
-                [logger.debug(f'stdout: {item}') for item in out if not None]
 
     def remove_pr_data(self):
         logger = logging.getLogger('JOB/REMOVE_PR_DATA')
@@ -178,8 +181,7 @@ class Job:
                      [f'rm -rf {self.rt_dir}', self.pr_repo_loc],
                      [f'rm -rf {pr_dir_str}', self.pr_repo_loc]
                      ]
-        logger.info(f'Running "{rm_command}"')
-        self.run_commands(rm_command)
+        self.run_commands(logger, rm_command)
 
     def clone_pr_repo(self):
         ''' clone the GitHub pull request repo, via command line '''
@@ -188,17 +190,18 @@ class Job:
         self.branch = self.preq_dict['preq'].head.ref
         git_url = self.preq_dict['preq'].head.repo.html_url.split('//')
         git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
-        logger.info(f'GIT URL: {git_url}')
+        logger.debug(f'GIT URL: {git_url}')
         logger.info('Starting repo clone')
         repo_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
         self.pr_repo_loc = repo_dir_str+"/"+repo_name
+        self.comment_text_append(f'Repo location: {self.pr_repo_loc}')
         create_repo_commands = [
             [f'mkdir -p "{repo_dir_str}"', self.machine['workdir']],
             [f'git clone -b {self.branch} {git_url}', repo_dir_str],
             [f'git submodule update --init --recursive', f'{repo_dir_str}/{repo_name}']
         ]
 
-        self.run_commands(create_repo_commands)
+        self.run_commands(logger, create_repo_commands)
 
         logger.info('Finished repo clone')
         return self.pr_repo_loc
@@ -206,34 +209,19 @@ class Job:
     def execute_action(self):
         ''' Run the command associted with the label used to initiate this job '''
         logger = logging.getLogger('JOB/EXECUTE_ACTION')
-        compiler = self.preq_dict['compiler']
-        logger.info(f'Compiler being used for command is {compiler}')
-        command = self.preq_dict["action"]["command"]
 
-        try:
-            logger.info(f'Running: "{command}" in "{self.pr_repo_loc}"')
-            output = subprocess.Popen(command, cwd=self.pr_repo_loc, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            out,err = output.communicate()
-        except Exception as e:
-            out = [] if not out else out.decode('utf8').split('\n')
-            err = [] if not err else err.decode('utf8').split('\n')
-            self.job_failed(logger, f'Command {command}', exception=e, out=out, err=err)
-        else:
-            if output.returncode != 0:
-                self.job_failed(logger, "Script rt.sh", exception=SystemExit, STDOUT=False)
-            else:
-                try:
-                    logger.info(f'Attempting to run callback: {self.preq_dict["action"]["callback_fnc"]}')
-                    getattr(self, self.preq_dict['action']['callback_fnc'])()
-                except Exception as e:
-                    self.job_failed(logger, f'Callback function {self.preq_dict["action"]["callback_fnc"]}', exception=e, STDOUT=False)
-                else:
-                    logger.info(f'Finished callback {self.preq_dict["action"]["callback_fnc"]}')
-                    [logger.debug(f'stdout: {item}') for item in out if not None]
+        action_commands = [[self.preq_dict["action"]["command"], self.pr_repo_loc]]
+        self.run_commands(logger, action_commands)
+
+        logger.info(f'Running callback: {self.preq_dict["action"]["callback_fnc"]}')
+        getattr(self, self.preq_dict['action']['callback_fnc'])()
+        logger.info(f'Finished callback {self.preq_dict["action"]["callback_fnc"]}')
 
     def run(self):
         logger = logging.getLogger('JOB/RUN')
         logger.info(f'Starting Job: {self.preq_dict["label"]}')
+        self.comment_text_append(newtext=f'Machine: {self.machine["name"]}')
+        self.comment_text_append(f'Compiler: {self.preq_dict["compiler"]}')
         if self.check_label_before_job_start():
             try:
                 logger.info('Calling remove_pr_label')
@@ -244,22 +232,24 @@ class Job:
                 self.execute_action()
             except Exception as e:
                 self.job_failed(logger, f'run()', exception=e, STDOUT=False)
+                self.send_comment_text()
         else:
             logger.info(f'Cannot find label {self.preq_dict["label"]}')
 
+    def send_comment_text(self):
+        self.comment_text_append('Please make changes and add the following label back:')
+        self.comment_text_append(f'{self.machine["name"]}-{self.preq_dict["compiler"]}-{self.preq_dict["action"]["name"]}')
+
+        self.preq_dict['preq'].create_issue_comment(self.comment_text)
+
     def job_failed(self, logger, job_name, exception=Exception, STDOUT=True, out=None, err=None):
-        comment_text = f'{job_name} FAILED \n'\
-                       f'Repo location: {self.pr_repo_loc} \n'\
-                       f'Machine: {self.machine["name"]} \n'\
-                       f'Compiler: {self.preq_dict["compiler"]} \n'
+        self.comment_text_append(f'{job_name} FAILED')
+        logger.critical(f'{job_name} FAILED')
+
         if STDOUT:
-            comment_text=comment_text+'\n'\
-                                f'STDOUT: {[item for item in out if not None]} \n'\
-                                f'STDERR: {[eitem for eitem in err if not None]} \n'
-        comment_text = comment_text+'Please make changes and add the following label back: '\
-                            f'{self.machine["name"]}-{self.preq_dict["compiler"]}-{self.preq_dict["action"]["name"]}'
-        logger.critical(comment_text)
-        self.preq_dict['preq'].create_issue_comment(comment_text)
+            logger.critical(f'STDOUT: {[item for item in out if not None]}')
+            logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
+
         raise exception
 
     def process_logfile(self, logfile):
@@ -267,8 +257,11 @@ class Job:
         if os.path.exists(logfile):
             with open(logfile) as f:
                 for line in f:
+                    if 'FAIL' in line:
+                        self.comment_text_append(f'{line}')
                     if 'working dir' in line and not self.rt_dir:
                         self.rt_dir = os.path.split(line.split()[-1])[0]
+                        self.comment_text_append(f'Please manually delete: {self.rt_dir}')
                     elif 'SUCCESSFUL' in line:
                         return True
             self.job_failed(logger, "Regression Tests", STDOUT=False)
@@ -291,7 +284,7 @@ class Job:
                 ['sleep 10', self.pr_repo_loc],
                 [f'git push origin {self.branch}', self.pr_repo_loc]
             ]
-            self.run_commands(move_rt_commands)
+            self.run_commands(logger, move_rt_commands)
             self.remove_pr_data()
 
     def bl_callback(self):
@@ -302,12 +295,10 @@ def main():
     # handle logging
     log_path = os.getcwd()
     log_filename = f'rt_auto_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.log'
-    # Please don't run the following on cron with level=logging.DEBUG
-    # as it exposes the GH API Token
-    # Only set it to DEBUG while debugging
     logging.basicConfig(filename=log_filename, filemode='w', level=logging.INFO)
     logger = logging.getLogger('MAIN')
     logger.info('Starting Script')
+
     # handle input args
     logger.info('Parsing input args')
     args = parse_args_in()
