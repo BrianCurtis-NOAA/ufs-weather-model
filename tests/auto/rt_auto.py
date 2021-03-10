@@ -255,6 +255,7 @@ class Job:
         raise exception
 
     def process_logfile(self, logfile):
+        logger = logging.getLogger('JOB/PROCESS_LOGFILE')
         self.rt_dir = []
         if os.path.exists(logfile):
             with open(logfile) as f:
