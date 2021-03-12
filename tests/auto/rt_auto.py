@@ -248,14 +248,12 @@ class Job:
         self.preq_dict['preq'].create_issue_comment(self.comment_text)
 
     def job_failed(self, logger, job_name, exception=Exception, STDOUT=True, out=None, err=None):
-        self.comment_text_append(f'{job_name} FAILED')
-        logger.critical(f'{job_name} FAILED')
+        self.comment_text_append(f'{job_name} FAILED with exception {exception}')
+        logger.critical(f'{job_name} FAILED with exception {exception}')
 
         if STDOUT:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
             logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
-
-        raise exception
 
     def process_logfile(self, logfile):
         logger = logging.getLogger('JOB/PROCESS_LOGFILE')
