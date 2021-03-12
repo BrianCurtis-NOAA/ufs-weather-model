@@ -179,7 +179,7 @@ class Job:
         pr_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}'
         rm_command = [
                      [f'rm -rf {self.rt_dir}', self.pr_repo_loc],
-                     [f'rm -rf {pr_dir_str}', self.pr_repo_loc]
+                     [f'rm -rf {self.repo_dir_str}', self.pr_repo_loc]
                      ]
         self.run_commands(logger, rm_command)
 
@@ -192,15 +192,15 @@ class Job:
         git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
         logger.debug(f'GIT URL: {git_url}')
         logger.info('Starting repo clone')
-        repo_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
-        self.pr_repo_loc = repo_dir_str+"/"+repo_name
+        self.repo_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+        self.pr_repo_loc = self.repo_dir_str+"/"+repo_name
         self.comment_text_append(f'Repo location: {self.pr_repo_loc}')
         create_repo_commands = [
-            [f'mkdir -p "{repo_dir_str}"', self.machine['workdir']],
-            [f'git clone -b {self.branch} {git_url}', repo_dir_str],
-            [f'git submodule update --init --recursive', f'{repo_dir_str}/{repo_name}'],
-            [f'git config user.email "brian.curtis@noaa.gov"', f'{repo_dir_str}/{repo_name}'],
-            [f'git config user.name "Brian Curtis"', f'{repo_dir_str}/{repo_name}']
+            [f'mkdir -p "{self.repo_dir_str}"', self.machine['workdir']],
+            [f'git clone -b {self.branch} {git_url}', self.repo_dir_str],
+            [f'git submodule update --init --recursive', f'{self.repo_dir_str}/{repo_name}'],
+            [f'git config user.email "brian.curtis@noaa.gov"', f'{self.repo_dir_str}/{repo_name}'],
+            [f'git config user.name "Brian Curtis"', f'{self.repo_dir_str}/{repo_name}']
         ]
 
         self.run_commands(logger, create_repo_commands)
@@ -234,11 +234,14 @@ class Job:
                 self.execute_action()
             except Exception as e:
                 self.job_failed(logger, f'run()', exception=e, STDOUT=False)
+                logger.info('Sending comment text')
                 self.send_comment_text()
         else:
             logger.info(f'Cannot find label {self.preq_dict["label"]}')
 
     def send_comment_text(self):
+        logger = logging.getLogger('JOB/SEND_COMMENT_TEXT')
+        logger.info(f'Comment Text: {self.comment_text}')
         self.comment_text_append('Please make changes and add the following label back:')
         self.comment_text_append(f'{self.machine["name"]}-{self.preq_dict["compiler"]}-{self.preq_dict["action"]["name"]}')
 
