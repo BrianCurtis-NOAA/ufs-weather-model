@@ -44,6 +44,7 @@ def parse_args_in():
     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
     parser.add_argument('-m', '--machine', help='Machine name', required=True, choices=choices, type=str)
     parser.add_argument('-w', '--workdir', help='Working directory', required=True, type=str)
+    parser.add_argument('-b', '--bldir', help='Baseline directory', required=True, type=str)
 
     # Get Arguments
     args = parser.parse_args()
@@ -59,7 +60,7 @@ def input_data(args):
     }
     repo_list_dict = [{
         'name': 'ufs-weather-model',
-        'address': 'ufs-community/ufs-weather-model',
+        'address': 'BrianCurtis-NOAA/ufs-weather-model',
         'base': 'develop'
     }]
     action_list_dict = [{
@@ -292,7 +293,21 @@ class Job:
             self.remove_pr_data()
 
     def bl_callback(self):
-        pass
+        ''' This is the callback function associated with the "BL" command '''
+        logger = logging.getLogger('JOB/MOVE_BL_LOGS')
+        rt_log = f'tests/RegressionTests_{self.machine["name"]}.{self.preq_dict["compiler"]}.log'
+        filepath = f'{self.pr_repo_loc}/{rt_log}'
+        logfile_pass = self.process_logfile(filepath)
+        if logfile_pass:
+            move_bl_commands = [
+                [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
+                [f'git add {rt_log}', self.pr_repo_loc],
+                [f'git commit -m "PASSED: {self.machine["name"]}.{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"', self.pr_repo_loc],
+                ['sleep 10', self.pr_repo_loc],
+                [f'git push origin {self.branch}', self.pr_repo_loc]
+            ]
+            self.run_commands(logger, move_bl_commands)
+            self.remove_pr_data()
 
 def main():
 
