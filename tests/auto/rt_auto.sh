@@ -16,7 +16,7 @@ fi
 
 if [[ $HOSTNAME == hfe* ]]; then
   MACHINE_NAME=hera
-  WORKDIR=/scratch1/NCEPDEV/nems/Brian.curtis/tests
+  WORKDIR=/scratch1/NCEPDEV/nems/Brian.Curtis/tests
   BLDIR=/scratch1/NCEPDEV/nems/Brian.Curtis/RT
   export PATH=/scratch1/NCEPDEV/nems/emc.nemspara/soft/miniconda3/bin:$PATH
   export PYTHONPATH=/scratch1/NCEPDEV/nems/emc.nemspara/soft/miniconda3/lib/python3.8/site-packages
