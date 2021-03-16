@@ -88,14 +88,14 @@ def set_action_from_label(machine, actions, label):
     action_match = next((action for action in actions if re.match(action['name'], label_action)), False)
     if label_action == 'RT': # SET ACTIONS BASED ON RT COMMAND
         if label_compiler == "intel":
-            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e'
+            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e > rt.out 2>&1'
         elif label_compiler == "gnu":
-            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -l rt_gnu.conf'
+            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -l rt_gnu.conf > rt.out 2>&1'
     elif label_action == 'BL': # SET ACTIONS BASED ON BL COMMAND
         if label_compiler == "intel":
-            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e -c'
+            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e -c > rt.out 2>&1'
         elif label_compiler == "gnu":
-            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -c -l rt_gnu.conf'
+            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -c -l rt_gnu.conf > rt.out 2>&1'
 
     return label_compiler, action_match
 
@@ -144,11 +144,15 @@ class Job:
 
     def comment_text_append(self, newtext):
             self.comment_text += f'{newtext}\n'
+            self.logger.info(f'comment text is now: {self.comment_text}')
 
     def remove_pr_label(self):
         ''' Removes the pull request label that initiated the job run from PR '''
         self.logger.info(f'Removing Label: {self.preq_dict["label"]}')
-        self.preq_dict['preq'].remove_from_labels(self.preq_dict['label'])
+        try:
+            self.preq_dict['preq'].remove_from_labels(self.preq_dict['label'])
+        except:
+            raise Exception(f'Could not remove label {self.preq_dict["label"]}')
 
     def check_label_before_job_start(self):
         # LETS Check the label still exists before the start of the job in the
@@ -167,10 +171,10 @@ class Job:
                 output = subprocess.Popen(command, shell=True, cwd=in_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 out, err = output.communicate()
                 out = [] if not out else out.decode('utf8').split('\n')
-                logger.info(out)
-            except Exception as e:
+                logger.debug(out)
+            except:
                 err = [] if not err else err.decode('utf8').split('\n')
-                self.job_failed(logger, f'Command {command}', exception=e, out=out, err=err)
+                self.job_failed(logger, f'Command {command}', STDOUT=True, out=out, err=err)
             else:
                 logger.info(f'Finished running: {command}')
 
@@ -232,12 +236,11 @@ class Job:
                 self.clone_pr_repo()
                 logger.info('Calling execute_action')
                 self.execute_action()
-            except Exception as e:
-                self.job_failed(logger, f'run()', exception=e, STDOUT=False)
+            except:
                 logger.info('Sending comment text')
                 self.send_comment_text()
         else:
-            logger.info(f'Cannot find label {self.preq_dict["label"]}')
+            logger.info(f'Cannot find label {self.preq_dict["label"]}. Skipping Job.')
 
     def send_comment_text(self):
         logger = logging.getLogger('JOB/SEND_COMMENT_TEXT')
@@ -248,12 +251,14 @@ class Job:
         self.preq_dict['preq'].create_issue_comment(self.comment_text)
 
     def job_failed(self, logger, job_name, exception=Exception, STDOUT=False, out=None, err=None):
-        self.comment_text_append(f'{job_name} FAILED with exception {exception}')
+        # self.comment_text_append(f'{job_name} FAILED with exception {exception}')
         logger.critical(f'{job_name} FAILED with exception {exception}')
 
         if STDOUT:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
             logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
+
+        raise Exception
 
     def process_logfile(self, logfile):
         logger = logging.getLogger('JOB/PROCESS_LOGFILE')
@@ -261,14 +266,14 @@ class Job:
         if os.path.exists(logfile):
             with open(logfile) as f:
                 for line in f:
-                    if 'FAIL' in line:
-                        self.comment_text_append(f'{line}')
-                    if 'working dir' in line and not self.rt_dir:
+                    if 'failed' in line:
+                        self.comment_text_append(f'{line.rstrip(chr(10))}')
+                    elif 'working dir' in line and not self.rt_dir:
                         self.rt_dir = os.path.split(line.split()[-1])[0]
                         self.comment_text_append(f'Please manually delete: {self.rt_dir}')
                     elif 'SUCCESSFUL' in line:
                         return True
-            self.job_failed(logger, "Regression Tests", STDOUT=False)
+            self.job_failed(logger, "Regression Tests")
         else:
             logger.critical(f'Could not find {self.machine["name"]}.{self.preq_dict["compiler"]} RT log')
             raise FileNotFoundError(f'Could not find {self.machine["name"]}.{self.preq_dict["compiler"]} RT log')
@@ -284,12 +289,14 @@ class Job:
             move_rt_commands = [
                 [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
                 [f'git add {rt_log}', self.pr_repo_loc],
-                [f'git commit -m "PASSED: {self.machine["name"]}.{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"', self.pr_repo_loc],
+                [f'git commit -m "PASSED: {self.machine["name"]}.{self.preq_dict["compiler"]}. Log file uploaded."', self.pr_repo_loc],
                 ['sleep 10', self.pr_repo_loc],
                 [f'git push origin {self.branch}', self.pr_repo_loc]
             ]
             self.run_commands(logger, move_rt_commands)
             self.remove_pr_data()
+        else:
+            raise Exception
 
     def bl_callback(self):
         pass
