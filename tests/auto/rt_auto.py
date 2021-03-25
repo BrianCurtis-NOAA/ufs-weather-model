@@ -14,6 +14,7 @@ import re
 import os
 import logging
 
+
 class GHInterface:
     '''
     This class stores information for communicating with GitHub
@@ -26,6 +27,7 @@ class GHInterface:
     client : pyGitHub communication object
       The connection to GitHub to make API requests
     '''
+
     def __init__(self):
         self.logger = logging.getLogger('GHINTERFACE')
         try:
@@ -34,26 +36,33 @@ class GHInterface:
             self.logger.critical(f'Exception is {e}')
             raise(e)
 
+
 def parse_args_in():
     ''' Parse all input arguments coming from rt_auto.sh '''
     logger = logging.getLogger('PARSE_ARGS_IN')
     # Create Parse
+    logger.info('Parsing input arguments')
     parser = argparse.ArgumentParser()
 
     # Setup Input Arguments
     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
-    parser.add_argument('-m', '--machine', help='Machine name', required=True, choices=choices, type=str)
-    parser.add_argument('-w', '--workdir', help='Working directory', required=True, type=str)
-    parser.add_argument('-b', '--bldir', help='Baseline directory', required=True, type=str)
+    parser.add_argument('-m', '--machine', help='Machine name', required=True,
+                        choices=choices, type=str)
+    parser.add_argument('-w', '--workdir', help='Working directory',
+                        required=True, type=str)
+    parser.add_argument('-b', '--bldir', help='Baseline directory',
+                        required=True, type=str)
 
     # Get Arguments
     args = parser.parse_args()
 
     return args
 
+
 def input_data(args):
     ''' Create dictionaries of data needed for processing UFS pull requests '''
     logger = logging.getLogger('INPUT_DATA')
+    logger.info('Creating dictionaries for input data')
     machine_dict = {
         'name': args.machine,
         'workdir': args.workdir
@@ -66,57 +75,79 @@ def input_data(args):
     action_list_dict = [{
         'name': 'RT',
         'callback_fnc': 'rt_callback'
-    },
-    {
+     },
+     {
         'name': 'BL',
         'callback_fnc': 'bl_callback'
     }]
 
     return machine_dict, repo_list_dict, action_list_dict
 
+
 def set_action_from_label(machine, actions, label):
     ''' Match the label that initiates a job with an action in the dict'''
     # <machine>-<compiler>-<test> i.e. hera-gnu-RT
-    # RT = full regression test suite
     logger = logging.getLogger('MATCH_LABEL_WITH_ACTIONS')
+    logger.info('Setting action from Label')
     split_label = label.name.split('-')
-    if len(split_label) != 3: return False, False #Make sure it has three parts
+    # Make sure it has three parts
+    if len(split_label) != 3:
+        return False, False
+    # Break the parts into their variables
     label_machine = split_label[0]
     label_compiler = split_label[1]
     label_action = split_label[2]
-    if not re.match(label_machine, machine['name']): return False, False #check machine name matches
-    if not str(label_compiler) in ["intel", "gnu"]: return False, False #Compiler must be intel or gnu
-    action_match = next((action for action in actions if re.match(action['name'], label_action)), False)
-    if label_action == 'RT': # SET ACTIONS BASED ON RT COMMAND
+    # check machine name matches
+    if not re.match(label_machine, machine['name']):
+        return False, False
+    # Compiler must be intel or gnu
+    if not str(label_compiler) in ["intel", "gnu"]:
+        return False, False
+    action_match = next((action for action in actions
+                         if re.match(action['name'], label_action)), False)
+    if label_action == 'RT':  # SET ACTIONS BASED ON RT COMMAND
         if label_compiler == "intel":
-            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e'
+            action_match["command"] = 'export RT_COMPILER="intel" && cd tests \
+                                       && /bin/bash --login ./rt.sh -e'
         elif label_compiler == "gnu":
-            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -l rt_gnu.conf'
-    elif label_action == 'BL': # SET ACTIONS BASED ON BL COMMAND
+            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests \
+                                       && /bin/bash --login \
+                                       ./rt.sh -e -l rt_gnu.conf'
+    elif label_action == 'BL':  # SET ACTIONS BASED ON BL COMMAND
         if label_compiler == "intel":
-            action_match["command"] = f'export RT_COMPILER="intel" && cd tests && /bin/bash --login ./rt.sh -e -c'
+            action_match["command"] = 'export RT_COMPILER="intel" && cd tests \
+                                       && /bin/bash --login ./rt.sh -e -c'
         elif label_compiler == "gnu":
-            action_match["command"] = f'export RT_COMPILER="gnu" && cd tests && /bin/bash --login ./rt.sh -e -c -l rt_gnu.conf'
-
+            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests \
+                                       && /bin/bash --login \
+                                       ./rt.sh -e -c -l rt_gnu.conf'
+    logging.info(f'Compiler: {label_compiler}, Action: {action_match}')
     return label_compiler, action_match
 
 
 def get_preqs_with_actions(repos, machine, ghinterface_obj, actions):
-    ''' Create list of dictionaries of a pull request and its machine label and action '''
+    ''' Create list of dictionaries of a pull request
+        and its machine label and action '''
     logger = logging.getLogger('GET_PREQS_WITH_ACTIONS')
-    gh_preqs = [ghinterface_obj.client.get_repo(repo['address']).get_pulls(state='open', sort='created', base=repo['base']) for repo in repos]
+    logger.info('Getting Pull Requests with Actions')
+    gh_preqs = [ghinterface_obj.client.get_repo(repo['address'])
+                .get_pulls(state='open', sort='created', base=repo['base'])
+                for repo in repos]
     each_pr = [preq for gh_preq in gh_preqs for preq in gh_preq]
-    preq_labels = [{'preq': pr, 'label': label} for pr in each_pr for label in pr.get_labels()]
+    preq_labels = [{'preq': pr, 'label': label} for pr in each_pr
+                   for label in pr.get_labels()]
 
     return_preq = []
     for pr_label in preq_labels:
-        compiler, match = set_action_from_label(machine, actions, pr_label['label'])
+        compiler, match = set_action_from_label(machine, actions,
+                                                pr_label['label'])
         if match:
             pr_label['action'] = match.copy()
             pr_label['compiler'] = compiler
             return_preq.append(pr_label.copy())
 
     return return_preq
+
 
 class Job:
     '''
@@ -144,19 +175,21 @@ class Job:
         self.failed_tests = []
 
     def comment_text_append(self, newtext):
-            self.comment_text += f'{newtext}\n'
+        self.comment_text += f'{newtext}\n'
 
     def remove_pr_label(self):
-        ''' Removes the pull request label that initiated the job run from PR '''
+        ''' Removes the PR label that initiated the job run from PR '''
         self.logger.info(f'Removing Label: {self.preq_dict["label"]}')
         self.preq_dict['preq'].remove_from_labels(self.preq_dict['label'])
 
     def check_label_before_job_start(self):
         # LETS Check the label still exists before the start of the job in the
         # case of multiple jobs
-        label_to_check = f'{self.machine["name"]}-{self.preq_dict["compiler"]}-{self.preq_dict["action"]["name"]}'
+        label_to_check = f'{self.machine["name"]}-{self.preq_dict["compiler"]}\
+                            -{self.preq_dict["action"]["name"]}'
         labels = self.preq_dict['preq'].get_labels()
-        label_match = next((label for label in labels if re.match(label.name, label_to_check)), False)
+        label_match = next((label for label in labels
+                            if re.match(label.name, label_to_check)), False)
 
         return label_match
 
@@ -165,19 +198,21 @@ class Job:
             logger.info(f'Running "{command}"')
             logger.debug(f'in location "{in_cwd}"')
             try:
-                output = subprocess.Popen(command, shell=True, cwd=in_cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                output = subprocess.Popen(command, shell=True, cwd=in_cwd,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.STDOUT)
                 out, err = output.communicate()
                 out = [] if not out else out.decode('utf8').split('\n')
                 logger.info(out)
             except Exception as e:
                 err = [] if not err else err.decode('utf8').split('\n')
-                self.job_failed(logger, f'Command {command}', exception=e, out=out, err=err)
+                self.job_failed(logger, f'Command {command}', exception=e,
+                                out=out, err=err)
             else:
                 logger.info(f'Finished running: {command}')
 
     def remove_pr_data(self):
         logger = logging.getLogger('JOB/REMOVE_PR_DATA')
-        pr_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}'
         rm_command = [
                      [f'rm -rf {self.rt_dir}', self.pr_repo_loc],
                      [f'rm -rf {self.repo_dir_str}', self.pr_repo_loc]
@@ -193,15 +228,20 @@ class Job:
         git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
         logger.debug(f'GIT URL: {git_url}')
         logger.info('Starting repo clone')
-        self.repo_dir_str = f'{self.machine["workdir"]}/{str(self.preq_dict["preq"].id)}/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+        self.repo_dir_str = f'{self.machine["workdir"]}/\
+                            {str(self.preq_dict["preq"].id)}/\
+                            {datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
         self.pr_repo_loc = self.repo_dir_str+"/"+repo_name
         self.comment_text_append(f'Repo location: {self.pr_repo_loc}')
         create_repo_commands = [
             [f'mkdir -p "{self.repo_dir_str}"', self.machine['workdir']],
             [f'git clone -b {self.branch} {git_url}', self.repo_dir_str],
-            [f'git submodule update --init --recursive', f'{self.repo_dir_str}/{repo_name}'],
-            [f'git config user.email "brian.curtis@noaa.gov"', f'{self.repo_dir_str}/{repo_name}'],
-            [f'git config user.name "Brian Curtis"', f'{self.repo_dir_str}/{repo_name}']
+            ['git submodule update --init --recursive',
+             f'{self.repo_dir_str}/{repo_name}'],
+            ['git config user.email "brian.curtis@noaa.gov"',
+             f'{self.repo_dir_str}/{repo_name}'],
+            ['git config user.name "Brian Curtis"',
+             f'{self.repo_dir_str}/{repo_name}']
         ]
 
         self.run_commands(logger, create_repo_commands)
@@ -210,15 +250,19 @@ class Job:
         return self.pr_repo_loc
 
     def execute_action(self):
-        ''' Run the command associted with the label used to initiate this job '''
+        ''' Run the command associted with
+            the label used to initiate this job '''
         logger = logging.getLogger('JOB/EXECUTE_ACTION')
 
-        action_commands = [[self.preq_dict["action"]["command"], self.pr_repo_loc]]
+        action_commands = [[self.preq_dict["action"]["command"],
+                            self.pr_repo_loc]]
         self.run_commands(logger, action_commands)
 
-        logger.info(f'Running callback: {self.preq_dict["action"]["callback_fnc"]}')
+        logger.info(f'Running callback: \
+                    {self.preq_dict["action"]["callback_fnc"]}')
         getattr(self, self.preq_dict['action']['callback_fnc'])()
-        logger.info(f'Finished callback {self.preq_dict["action"]["callback_fnc"]}')
+        logger.info(f'Finished callback \
+                    {self.preq_dict["action"]["callback_fnc"]}')
 
     def run(self):
         logger = logging.getLogger('JOB/RUN')
@@ -234,7 +278,7 @@ class Job:
                 logger.info('Calling execute_action')
                 self.execute_action()
             except Exception as e:
-                self.job_failed(logger, f'run()', exception=e, STDOUT=False)
+                self.job_failed(logger, 'run()', exception=e, STDOUT=False)
                 logger.info('Sending comment text')
                 self.send_comment_text()
         else:
@@ -243,14 +287,18 @@ class Job:
     def send_comment_text(self):
         logger = logging.getLogger('JOB/SEND_COMMENT_TEXT')
         logger.info(f'Comment Text: {self.comment_text}')
-        self.comment_text_append('Please make changes and add the following label back:')
-        self.comment_text_append(f'{self.machine["name"]}-{self.preq_dict["compiler"]}-{self.preq_dict["action"]["name"]}')
+        self.comment_text_append('Please make changes and add \
+                                  the following label back:')
+        self.comment_text_append(f'{self.machine["name"]}\
+                                 -{self.preq_dict["compiler"]}\
+                                 -{self.preq_dict["action"]["name"]}')
 
         self.preq_dict['preq'].create_issue_comment(self.comment_text)
 
-    def job_failed(self, logger, job_name, exception=Exception, STDOUT=False, out=None, err=None):
-        self.comment_text_append(f'{job_name} FAILED with exception {exception}')
-        logger.critical(f'{job_name} FAILED with exception {exception}')
+    def job_failed(self, logger, job_name, exception=Exception, STDOUT=False,
+                   out=None, err=None):
+        self.comment_text_append(f'{job_name} FAILED. Exception:{exception}')
+        logger.critical(f'{job_name} FAILED. Exception:{exception}')
 
         if STDOUT:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
@@ -266,26 +314,32 @@ class Job:
                         self.comment_text_append(f'{line}')
                     if 'working dir' in line and not self.rt_dir:
                         self.rt_dir = os.path.split(line.split()[-1])[0]
-                        self.comment_text_append(f'Please manually delete: {self.rt_dir}')
+                        self.comment_text_append(f'Please manually delete:\
+                                                 {self.rt_dir}')
                     elif 'SUCCESSFUL' in line:
                         return True
             self.job_failed(logger, "Regression Tests", STDOUT=False)
         else:
-            logger.critical(f'Could not find {self.machine["name"]}.{self.preq_dict["compiler"]} RT log')
-            raise FileNotFoundError(f'Could not find {self.machine["name"]}.{self.preq_dict["compiler"]} RT log')
+            logger.critical(f'Could not find {self.machine["name"]}\
+                            .{self.preq_dict["compiler"]} RT log')
+            raise FileNotFoundError(f'Could not find {self.machine["name"]}\
+                                    .{self.preq_dict["compiler"]} RT log')
 
     # Add Callback Functions After Here
     def rt_callback(self):
         ''' This is the callback function associated with the "RT" command '''
         logger = logging.getLogger('JOB/MOVE_RT_LOGS')
-        rt_log = f'tests/RegressionTests_{self.machine["name"]}.{self.preq_dict["compiler"]}.log'
+        rt_log = f'tests/RegressionTests_{self.machine["name"]}\
+                 .{self.preq_dict["compiler"]}.log'
         filepath = f'{self.pr_repo_loc}/{rt_log}'
         logfile_pass = self.process_logfile(filepath)
         if logfile_pass:
             move_rt_commands = [
                 [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
                 [f'git add {rt_log}', self.pr_repo_loc],
-                [f'git commit -m "PASSED: {self.machine["name"]}.{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"', self.pr_repo_loc],
+                [f'git commit -m "PASSED: {self.machine["name"]}\
+                 .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
+                 self.pr_repo_loc],
                 ['sleep 10', self.pr_repo_loc],
                 [f'git push origin {self.branch}', self.pr_repo_loc]
             ]
@@ -295,26 +349,31 @@ class Job:
     def bl_callback(self):
         ''' This is the callback function associated with the "BL" command '''
         logger = logging.getLogger('JOB/MOVE_BL_LOGS')
-        rt_log = f'tests/RegressionTests_{self.machine["name"]}.{self.preq_dict["compiler"]}.log'
+        rt_log = f'tests/RegressionTests_{self.machine["name"]}\
+                 .{self.preq_dict["compiler"]}.log'
         filepath = f'{self.pr_repo_loc}/{rt_log}'
         logfile_pass = self.process_logfile(filepath)
         if logfile_pass:
             move_bl_commands = [
                 [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
                 [f'git add {rt_log}', self.pr_repo_loc],
-                [f'git commit -m "PASSED: {self.machine["name"]}.{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"', self.pr_repo_loc],
+                [f'git commit -m "PASSED: {self.machine["name"]}\
+                 .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
+                 self.pr_repo_loc],
                 ['sleep 10', self.pr_repo_loc],
                 [f'git push origin {self.branch}', self.pr_repo_loc]
             ]
             self.run_commands(logger, move_bl_commands)
             self.remove_pr_data()
 
+
 def main():
 
     # handle logging
-    log_path = os.getcwd()
-    log_filename = f'rt_auto_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.log'
-    logging.basicConfig(filename=log_filename, filemode='w', level=logging.INFO)
+    log_filename = f'rt_auto_\
+                    {datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.log'
+    logging.basicConfig(filename=log_filename, filemode='w',
+                        level=logging.INFO)
     logger = logging.getLogger('MAIN')
     logger.info('Starting Script')
 
@@ -331,8 +390,10 @@ def main():
     ghinterface_obj = GHInterface()
 
     # get all pull requests from the GitHub object
-    logger.info('Getting all pull requests, labels and actions applicable to this machine.')
-    preq_dict = get_preqs_with_actions(repos, machine, ghinterface_obj, actions)
+    logger.info('Getting all pull requests, \
+                labels and actions applicable to this machine.')
+    preq_dict = get_preqs_with_actions(repos, machine,
+                                       ghinterface_obj, actions)
     # add Job objects and run them
     logger.info('Adding all jobs to an object list and running them.')
     jobs = [Job(pullreq, ghinterface_obj, machine) for pullreq in preq_dict]
