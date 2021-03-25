@@ -13,6 +13,7 @@ import subprocess
 import re
 import os
 import logging
+import importlib
 
 
 class GHInterface:
@@ -169,6 +170,12 @@ class Job:
     def __init__(self, preq_dict, ghinterface_obj, machine):
         self.logger = logging.getLogger('JOB')
         self.preq_dict = preq_dict
+        try:
+            self.job_mod = importlib.import_module(
+                           f'jobs.{self.preq_dict["action"]["name"]}')
+        except Exception:
+            raise ModuleNotFoundError(f'Module: \
+                  {self.preq_dict["action"]["name"]} not found')
         self.ghinterface_obj = ghinterface_obj
         self.machine = machine
         self.comment_text = ''
@@ -211,72 +218,75 @@ class Job:
             else:
                 logger.info(f'Finished running: {command}')
 
-    def remove_pr_data(self):
-        logger = logging.getLogger('JOB/REMOVE_PR_DATA')
-        rm_command = [
-                     [f'rm -rf {self.rt_dir}', self.pr_repo_loc],
-                     [f'rm -rf {self.repo_dir_str}', self.pr_repo_loc]
-                     ]
-        self.run_commands(logger, rm_command)
+    # def remove_pr_data(self):
+    #     logger = logging.getLogger('JOB/REMOVE_PR_DATA')
+    #     rm_command = [
+    #                  [f'rm -rf {self.rt_dir}', self.pr_repo_loc],
+    #                  [f'rm -rf {self.repo_dir_str}', self.pr_repo_loc]
+    #                  ]
+    #     self.run_commands(logger, rm_command)
 
-    def clone_pr_repo(self):
-        ''' clone the GitHub pull request repo, via command line '''
-        logger = logging.getLogger('JOB/CLONE_PR_REPO')
-        repo_name = self.preq_dict['preq'].head.repo.name
-        self.branch = self.preq_dict['preq'].head.ref
-        git_url = self.preq_dict['preq'].head.repo.html_url.split('//')
-        git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
-        logger.debug(f'GIT URL: {git_url}')
-        logger.info('Starting repo clone')
-        self.repo_dir_str = f'{self.machine["workdir"]}/\
-                            {str(self.preq_dict["preq"].id)}/\
-                            {datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
-        self.pr_repo_loc = self.repo_dir_str+"/"+repo_name
-        self.comment_text_append(f'Repo location: {self.pr_repo_loc}')
-        create_repo_commands = [
-            [f'mkdir -p "{self.repo_dir_str}"', self.machine['workdir']],
-            [f'git clone -b {self.branch} {git_url}', self.repo_dir_str],
-            ['git submodule update --init --recursive',
-             f'{self.repo_dir_str}/{repo_name}'],
-            ['git config user.email "brian.curtis@noaa.gov"',
-             f'{self.repo_dir_str}/{repo_name}'],
-            ['git config user.name "Brian Curtis"',
-             f'{self.repo_dir_str}/{repo_name}']
-        ]
+    # def clone_pr_repo(self):
+    #     ''' clone the GitHub pull request repo, via command line '''
+    #     logger = logging.getLogger('JOB/CLONE_PR_REPO')
+    #     repo_name = self.preq_dict['preq'].head.repo.name
+    #     self.branch = self.preq_dict['preq'].head.ref
+    #     git_url = self.preq_dict['preq'].head.repo.html_url.split('//')
+    #     git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
+    #     logger.debug(f'GIT URL: {git_url}')
+    #     logger.info('Starting repo clone')
+    #     self.repo_dir_str = f'{self.machine["workdir"]}/\
+    #                         {str(self.preq_dict["preq"].id)}/\
+    #                         {datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+    #     self.pr_repo_loc = self.repo_dir_str+"/"+repo_name
+    #     self.comment_text_append(f'Repo location: {self.pr_repo_loc}')
+    #     create_repo_commands = [
+    #         [f'mkdir -p "{self.repo_dir_str}"', self.machine['workdir']],
+    #         [f'git clone -b {self.branch} {git_url}', self.repo_dir_str],
+    #         ['git submodule update --init --recursive',
+    #          f'{self.repo_dir_str}/{repo_name}'],
+    #         ['git config user.email "brian.curtis@noaa.gov"',
+    #          f'{self.repo_dir_str}/{repo_name}'],
+    #         ['git config user.name "Brian Curtis"',
+    #          f'{self.repo_dir_str}/{repo_name}']
+    #     ]
+    #
+    #     self.run_commands(logger, create_repo_commands)
+    #
+    #     logger.info('Finished repo clone')
+    #     return self.pr_repo_loc
 
-        self.run_commands(logger, create_repo_commands)
-
-        logger.info('Finished repo clone')
-        return self.pr_repo_loc
-
-    def execute_action(self):
-        ''' Run the command associted with
-            the label used to initiate this job '''
-        logger = logging.getLogger('JOB/EXECUTE_ACTION')
-
-        action_commands = [[self.preq_dict["action"]["command"],
-                            self.pr_repo_loc]]
-        self.run_commands(logger, action_commands)
-
-        logger.info(f'Running callback: \
-                    {self.preq_dict["action"]["callback_fnc"]}')
-        getattr(self, self.preq_dict['action']['callback_fnc'])()
-        logger.info(f'Finished callback \
-                    {self.preq_dict["action"]["callback_fnc"]}')
+    # def execute_action(self):
+    #     ''' Run the command associted with
+    #         the label used to initiate this job '''
+    #     logger = logging.getLogger('JOB/EXECUTE_ACTION')
+    #
+    #     action_commands = [[self.preq_dict["action"]["command"],
+    #                         self.pr_repo_loc]]
+    #     self.run_commands(logger, action_commands)
+    #
+    #     logger.info(f'Running callback: \
+    #                 {self.preq_dict["action"]["callback_fnc"]}')
+    #     getattr(self, self.preq_dict['action']['callback_fnc'])()
+    #     logger.info(f'Finished callback \
+    #                 {self.preq_dict["action"]["callback_fnc"]}')
 
     def run(self):
         logger = logging.getLogger('JOB/RUN')
         logger.info(f'Starting Job: {self.preq_dict["label"]}')
         self.comment_text_append(newtext=f'Machine: {self.machine["name"]}')
         self.comment_text_append(f'Compiler: {self.preq_dict["compiler"]}')
+        self.comment_text_append(f'Job: {self.preq_dict["action"]["name"]}')
         if self.check_label_before_job_start():
             try:
                 logger.info('Calling remove_pr_label')
                 self.remove_pr_label()
-                logger.info('Calling clone_pr_repo')
-                self.clone_pr_repo()
-                logger.info('Calling execute_action')
-                self.execute_action()
+                logger.info('Calling Job to Run')
+                self.job_mod.run(self)
+                # logger.info('Calling clone_pr_repo')
+                # self.clone_pr_repo()
+                # logger.info('Calling execute_action')
+                # self.execute_action()
             except Exception as e:
                 self.job_failed(logger, 'run()', exception=e, STDOUT=False)
                 logger.info('Sending comment text')
@@ -304,67 +314,70 @@ class Job:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
             logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
 
-    def process_logfile(self, logfile):
-        logger = logging.getLogger('JOB/PROCESS_LOGFILE')
-        self.rt_dir = []
-        if os.path.exists(logfile):
-            with open(logfile) as f:
-                for line in f:
-                    if 'FAIL' in line:
-                        self.comment_text_append(f'{line}')
-                    if 'working dir' in line and not self.rt_dir:
-                        self.rt_dir = os.path.split(line.split()[-1])[0]
-                        self.comment_text_append(f'Please manually delete:\
-                                                 {self.rt_dir}')
-                    elif 'SUCCESSFUL' in line:
-                        return True
-            self.job_failed(logger, "Regression Tests", STDOUT=False)
-        else:
-            logger.critical(f'Could not find {self.machine["name"]}\
-                            .{self.preq_dict["compiler"]} RT log')
-            raise FileNotFoundError(f'Could not find {self.machine["name"]}\
-                                    .{self.preq_dict["compiler"]} RT log')
+    # def process_logfile(self, logfile):
+    #     logger = logging.getLogger('JOB/PROCESS_LOGFILE')
+    #     self.rt_dir = []
+    #     if os.path.exists(logfile):
+    #         with open(logfile) as f:
+    #             for line in f:
+    #                 if 'FAIL' in line:
+    #                     self.comment_text_append(f'{line}')
+    #                 if 'working dir' in line and not self.rt_dir:
+    #                     self.rt_dir = os.path.split(line.split()[-1])[0]
+    #                     self.comment_text_append(f'Please manually delete:\
+    #                                              {self.rt_dir}')
+    #                 elif 'SUCCESSFUL' in line:
+    #                     return True
+    #         self.job_failed(logger, f'{self.preq_dict["action"]["name"]}',
+    #                         STDOUT=False)
+    #     else:
+    #         logger.critical(f'Could not find {self.machine["name"]}\
+    #                         .{self.preq_dict["compiler"]} \
+    #                         {self.preq_dict["action"]["name"]} log')
+    #         raise FileNotFoundError(f'Could not find {self.machine["name"]}\
+    #                                 .{self.preq_dict["compiler"]} \
+    #                                 {self.preq_dict["action"]["name"]} log')
 
     # Add Callback Functions After Here
-    def rt_callback(self):
-        ''' This is the callback function associated with the "RT" command '''
-        logger = logging.getLogger('JOB/MOVE_RT_LOGS')
-        rt_log = f'tests/RegressionTests_{self.machine["name"]}\
-                 .{self.preq_dict["compiler"]}.log'
-        filepath = f'{self.pr_repo_loc}/{rt_log}'
-        logfile_pass = self.process_logfile(filepath)
-        if logfile_pass:
-            move_rt_commands = [
-                [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
-                [f'git add {rt_log}', self.pr_repo_loc],
-                [f'git commit -m "PASSED: {self.machine["name"]}\
-                 .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
-                 self.pr_repo_loc],
-                ['sleep 10', self.pr_repo_loc],
-                [f'git push origin {self.branch}', self.pr_repo_loc]
-            ]
-            self.run_commands(logger, move_rt_commands)
-            self.remove_pr_data()
+    # def rt_callback(self):
+    #     ''' This is the callback function associated with the "RT" command '''
+    #     logger = logging.getLogger('JOB/MOVE_RT_LOGS')
+    #     rt_log = f'tests/RegressionTests_{self.machine["name"]}\
+    #              .{self.preq_dict["compiler"]}.log'
+    #     filepath = f'{self.pr_repo_loc}/{rt_log}'
+    #     logfile_pass = self.process_logfile(filepath)
+    #     if logfile_pass:
+    #         move_rt_commands = [
+    #             [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
+    #             [f'git add {rt_log}', self.pr_repo_loc],
+    #             [f'git commit -m "PASSED: {self.machine["name"]}\
+    #              .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
+    #              self.pr_repo_loc],
+    #             ['sleep 10', self.pr_repo_loc],
+    #             [f'git push origin {self.branch}', self.pr_repo_loc]
+    #         ]
+    #         self.run_commands(logger, move_rt_commands)
+    #         self.remove_pr_data()
 
-    def bl_callback(self):
-        ''' This is the callback function associated with the "BL" command '''
-        logger = logging.getLogger('JOB/MOVE_BL_LOGS')
-        rt_log = f'tests/RegressionTests_{self.machine["name"]}\
-                 .{self.preq_dict["compiler"]}.log'
-        filepath = f'{self.pr_repo_loc}/{rt_log}'
-        logfile_pass = self.process_logfile(filepath)
-        if logfile_pass:
-            move_bl_commands = [
-                [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
-                [f'git add {rt_log}', self.pr_repo_loc],
-                [f'git commit -m "PASSED: {self.machine["name"]}\
-                 .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
-                 self.pr_repo_loc],
-                ['sleep 10', self.pr_repo_loc],
-                [f'git push origin {self.branch}', self.pr_repo_loc]
-            ]
-            self.run_commands(logger, move_bl_commands)
-            self.remove_pr_data()
+    # def bl_callback(self):
+    #     ''' This is the callback function associated with the "BL" command '''
+    #     logger = logging.getLogger('JOB/MOVE_BL_LOGS')
+    #     rt_log = f'tests/RegressionTests_{self.machine["name"]}\
+    #              .{self.preq_dict["compiler"]}.log'
+    #     filepath = f'{self.pr_repo_loc}/{rt_log}'
+    #     logfile_pass = self.process_logfile(filepath)
+    #     if logfile_pass:
+    #         move_bl_commands = [
+    #             [f'git pull --ff-only origin {self.branch}', self.pr_repo_loc],
+    #             [f'git add {rt_log}', self.pr_repo_loc],
+    #             [f'git commit -m "PASSED: {self.machine["name"]}\
+    #              .{self.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
+    #              self.pr_repo_loc],
+    #             ['sleep 10', self.pr_repo_loc],
+    #             [f'git push origin {self.branch}', self.pr_repo_loc]
+    #         ]
+    #         self.run_commands(logger, move_bl_commands)
+    #         self.remove_pr_data()
 
 
 def main():
