@@ -108,12 +108,13 @@ def set_action_from_label(machine, actions, label):
                          if re.match(action['name'], label_action)), False)
     if label_action == 'RT':  # SET ACTIONS BASED ON RT COMMAND
         if label_compiler == "intel":
-            action_match["command"] = 'export RT_COMPILER="intel" && cd tests \
-                                       && /bin/bash --login ./rt.sh -e'
+            action_match["command"] = 'export RT_COMPILER="intel" '\
+                                      '&& cd tests '\
+                                      '&& /bin/bash --login ./rt.sh -e'
         elif label_compiler == "gnu":
-            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests \
-                                       && /bin/bash --login \
-                                       ./rt.sh -e -l rt_gnu.conf'
+            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests '\
+                                      '&& /bin/bash --login '\
+                                      './rt.sh -e -l rt_gnu.conf'
     elif label_action == 'BL':  # SET ACTIONS BASED ON BL COMMAND
         if label_compiler == "intel":
             action_match["command"] = 'export RT_COMPILER="intel" && cd tests \
@@ -172,7 +173,7 @@ class Job:
         self.preq_dict = preq_dict
         try:
             self.job_mod = importlib.import_module(
-                           f'jobs.{self.preq_dict["action"]["name"]}')
+                           f'jobs.{self.preq_dict["action"]["name"].lower()}')
         except Exception:
             raise ModuleNotFoundError(f'Module: \
                   {self.preq_dict["action"]["name"]} not found')
@@ -192,8 +193,8 @@ class Job:
     def check_label_before_job_start(self):
         # LETS Check the label still exists before the start of the job in the
         # case of multiple jobs
-        label_to_check = f'{self.machine["name"]}-{self.preq_dict["compiler"]}\
-                            -{self.preq_dict["action"]["name"]}'
+        label_to_check = f'{self.machine["name"]}-{self.preq_dict["compiler"]}'\
+                         f'-{self.preq_dict["action"]["name"]}'
         labels = self.preq_dict['preq'].get_labels()
         label_match = next((label for label in labels
                             if re.match(label.name, label_to_check)), False)
@@ -202,21 +203,25 @@ class Job:
 
     def run_commands(self, logger, commands_with_cwd):
         for command, in_cwd in commands_with_cwd:
-            logger.info(f'Running "{command}"')
-            logger.debug(f'in location "{in_cwd}"')
+            logger.info(f'Running `{command}`')
+            logger.info(f'in location "{in_cwd}"')
             try:
                 output = subprocess.Popen(command, shell=True, cwd=in_cwd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.STDOUT)
-                out, err = output.communicate()
-                out = [] if not out else out.decode('utf8').split('\n')
-                logger.info(out)
             except Exception as e:
-                err = [] if not err else err.decode('utf8').split('\n')
-                self.job_failed(logger, f'Command {command}', exception=e,
-                                out=out, err=err)
+                self.job_failed(logger, f'subprocess.Popen', exception=e)
             else:
-                logger.info(f'Finished running: {command}')
+                try:
+                    out, err = output.communicate()
+                    out = [] if not out else out.decode('utf8').split('\n')
+                    logger.info(out)
+                except Exception as e:
+                    err = [] if not err else err.decode('utf8').split('\n')
+                    self.job_failed(logger, f'Command {command}', exception=e,
+                                    out=out, err=err)
+                else:
+                    logger.info(f'Finished running: {command}')
 
     # def remove_pr_data(self):
     #     logger = logging.getLogger('JOB/REMOVE_PR_DATA')
@@ -297,11 +302,11 @@ class Job:
     def send_comment_text(self):
         logger = logging.getLogger('JOB/SEND_COMMENT_TEXT')
         logger.info(f'Comment Text: {self.comment_text}')
-        self.comment_text_append('Please make changes and add \
-                                  the following label back:')
-        self.comment_text_append(f'{self.machine["name"]}\
-                                 -{self.preq_dict["compiler"]}\
-                                 -{self.preq_dict["action"]["name"]}')
+        self.comment_text_append('Please make changes and add'
+                                 'the following label back:')
+        self.comment_text_append(f'{self.machine["name"]}'
+                                 f'-{self.preq_dict["compiler"]}'
+                                 f'-{self.preq_dict["action"]["name"]}')
 
         self.preq_dict['preq'].create_issue_comment(self.comment_text)
 
@@ -383,8 +388,8 @@ class Job:
 def main():
 
     # handle logging
-    log_filename = f'rt_auto_\
-                    {datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.log'
+    log_filename = f'rt_auto_'\
+                   f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.log'
     logging.basicConfig(filename=log_filename, filemode='w',
                         level=logging.INFO)
     logger = logging.getLogger('MAIN')
@@ -403,8 +408,8 @@ def main():
     ghinterface_obj = GHInterface()
 
     # get all pull requests from the GitHub object
-    logger.info('Getting all pull requests, \
-                labels and actions applicable to this machine.')
+    logger.info('Getting all pull requests,'\
+                'labels and actions applicable to this machine.')
     preq_dict = get_preqs_with_actions(repos, machine,
                                        ghinterface_obj, actions)
     # add Job objects and run them
