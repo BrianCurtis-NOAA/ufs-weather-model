@@ -16,7 +16,7 @@ def run_regression_test(job_obj, pr_repo_loc):
     if compiler=='gnu':
         rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
                    '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf', pr_repo_loc]]
-    elif compiler='intel':
+    elif compiler=='intel':
         rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
                    '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
     job_obj.run_commands(logger, rt_command)
