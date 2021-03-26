@@ -13,12 +13,13 @@ def run(job_obj):
 def run_regression_test(job_obj, pr_repo_loc):
     logger = logging.getLogger('RT/RUN_REGRESSION_TEST')
     compiler = job_obj.preq_dict["compiler"]
-    if compiler=='gnu':
+    if compiler == 'gnu':
         rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                   '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf', pr_repo_loc]]
-    elif compiler=='intel':
+                       '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf',
+                       pr_repo_loc]]
+    elif compiler == 'intel':
         rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                   '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
+                       '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
     job_obj.run_commands(logger, rt_command)
 
 
@@ -73,7 +74,7 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
         move_rt_commands = [
             [f'git pull --ff-only origin {branch}', pr_repo_loc],
             [f'git add {rt_log}', pr_repo_loc],
-            [f'git commit -m "PASSED: {job_obj.machine["name"]}'\
+            [f'git commit -m "PASSED: {job_obj.machine["name"]}'
              f'.{job_obj.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
              pr_repo_loc],
             ['sleep 10', pr_repo_loc],
