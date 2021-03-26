@@ -6,18 +6,56 @@ import sys
 
 
 def run(job_obj):
-    bldate = get_bl_date(job_obj)
-    create_bl_dir(job_obj, bldate)
-    sys.exit()
-    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj)
+    logger = logging.getLogger('BL/RUN')
+    workdir, bldir, blstore = set_directories(job_obj)
+    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj, machine)
     run_regression_test(job_obj, pr_repo_loc)
-    post_process(job_obj, pr_repo_loc, repo_dir_str, branch)
+    post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore)
 
 
-def create_bl_dir(job_obj, bldate):
-    bldir = job_obj.machine['bldir']
-    bldir += f'/develop-{bldate}'
-    print(f'Build Dir: {bldir}')
+def set_directories(job_obj):
+    logger = logging.getLogger('BL/SET_DIRECTORIES')
+    if job_obj.machine['name'] == 'hera':
+        workdir = '/scratch1/NCEPDEV/nems/emc.nemspara/autort/pr'
+        blstore = '/scratch1/NCEPDEV/nems/emc.nemspara/RT/NEMSfv3gfs'
+        rtbldir = '/scratch1/NCEPDEV/stmp4/emc.nemspara/FV3_RT/'\
+                f'REGRESSION_TEST_{job_obj.compiler}'
+    elif job_obj.machine['name'] == 'jet':
+        workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
+        blstore = '/lfs4/HFIP/hfv3gfs/RT/NEMSfv3gfs/'
+        rtbldir = '/lfs4/HFIP/hfv3gfs/emc.nemspara/RT_BASELINE/'\
+               f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler}'
+    elif job_obj.machine['name'] == 'gaea':
+        workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
+        blstore = '/lustre/f2/pdata/esrl/gsd/ufs/ufs-weather-model/RT'
+        rtbldir = '/lustre/f2/scratch/Brian.Curtis/FV3_RT/'\
+               f'REGRESSION_TEST_{job_obj.compiler}'
+    elif job_obj.machine['name'] == 'orion':
+        workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
+        blstore = '/work/noaa/nems/emc.nemspara/RT/NEMSfv3gfs'
+        rtbldir = '/work/noaa/stmp/bcurtis/stmp/bcurtis/FV3_RT/'\
+               f'REGRESSION_TEST_{job_obj.compiler}'
+    elif job_obj.machine['name'] == 'cheyenne':
+        workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
+        blstore = '/glade/p/ral/jntp/GMTB/ufs-weather-model/RT'
+        rtbldir = '/glade/work/heinzell/FV3_RT/'\
+               f'REGRESSION_TEST_{job_obj.compiler}'
+    else:
+        raise KeyError(f'Machine {job_obj.machine["name"]} is not '\
+                        'supported for this job')
+
+    logger.info(f'machine: {job_obj.machine["name"]}')
+    logger.info(f'workdir: {workdir}')
+    logger.info(f'blstore: {blstore}')
+    logger.info(f'rtbldir: {rtbldir}')
+
+    return workdir, bldir, blstore
+
+
+def create_bl_dir(job_obj, bldate, blstore):
+    logger = logging.getLogger('BL/CREATE_BL_DIR')
+    bldir = f'{blstore}/develop-{bldate}/{job_obj.compiler.upper()}'
+    logger.info(f'Build Dir: {bldir}')
     if os.path.exists(bldir):
         raise FileExistsError(f'Baseline dir: {bldir} exists. It should not.')
     else:
@@ -26,32 +64,39 @@ def create_bl_dir(job_obj, bldate):
         if not os.path.exists(bldir):
             raise Exception(f'Something went wrong creating {bldir}')
 
+    return bldir
+
 
 def get_bl_date(job_obj):
+    logger = logging.getLogger('BL/GET_BL_DATE')
     for line in job_obj.preq_dict['preq'].body.splitlines():
         if 'BLDIR:' in line:
             bldate = line
             bldate = bldate.replace('BLDIR:', '')
             bldate = bldate.replace(' ', '')
-
+        bl_format = '%Y%m%d'
+        try:
+            datetime.datetime.strptime(bldate, bl_format)
+        except ValueError:
+            print(f'Date {bldate} is not formatted YYYYMMDD')
+            raise ValueError
     return bldate
 
 
 def run_regression_test(job_obj, pr_repo_loc):
-    logger = logging.getLogger('RT/RUN_REGRESSION_TEST')
-    compiler = job_obj.preq_dict["compiler"]
-    if compiler == 'gnu':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                       '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf',
+    logger = logging.getLogger('BL/RUN_REGRESSION_TEST')
+    if job_obj.compiler == 'gnu':
+        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
+                       '&& /bin/bash --login ./rt.sh -e -c -l rt_gnu.conf',
                        pr_repo_loc]]
-    elif compiler == 'intel':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                       '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
+    elif job_obj.compiler == 'intel':
+        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
+                       '&& /bin/bash --login ./rt.sh -e -c', pr_repo_loc]]
     job_obj.run_commands(logger, rt_command)
 
 
 def remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir):
-    logger = logging.getLogger('RT/REMOVE_PR_DATA')
+    logger = logging.getLogger('BL/REMOVE_PR_DATA')
     rm_command = [
                  [f'rm -rf {rt_dir}', pr_repo_loc],
                  [f'rm -rf {repo_dir_str}', pr_repo_loc]
@@ -59,22 +104,22 @@ def remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir):
     job_obj.run_commands(logger, rm_command)
 
 
-def clone_pr_repo(job_obj):
+def clone_pr_repo(job_obj, workdir):
     ''' clone the GitHub pull request repo, via command line '''
-    logger = logging.getLogger('RT/CLONE_PR_REPO')
+    logger = logging.getLogger('BL/CLONE_PR_REPO')
     repo_name = job_obj.preq_dict['preq'].head.repo.name
     branch = job_obj.preq_dict['preq'].head.ref
     git_url = job_obj.preq_dict['preq'].head.repo.html_url.split('//')
     git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
     logger.debug(f'GIT URL: {git_url}')
     logger.info('Starting repo clone')
-    repo_dir_str = f'{job_obj.machine["workdir"]}/'\
+    repo_dir_str = f'{workdir}/'\
                    f'{str(job_obj.preq_dict["preq"].id)}/'\
                    f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
     create_repo_commands = [
-        [f'mkdir -p "{repo_dir_str}"', job_obj.machine['workdir']],
+        [f'mkdir -p "{repo_dir_str}"', workdir],
         [f'git clone -b {branch} {git_url}', repo_dir_str],
         ['git submodule update --init --recursive',
          f'{repo_dir_str}/{repo_name}'],
@@ -90,29 +135,48 @@ def clone_pr_repo(job_obj):
     return branch, pr_repo_loc, repo_dir_str
 
 
-def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
-    ''' This is the callback function associated with the "RT" command '''
-    logger = logging.getLogger('RT/MOVE_RT_LOGS')
+def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore):
+    logger = logging.getLogger('BL/MOVE_RT_LOGS')
     rt_log = f'tests/RegressionTests_{job_obj.machine["name"]}'\
-             f'.{job_obj.preq_dict["compiler"]}.log'
+             f'.{job_obj.compiler}.log'
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
     if logfile_pass:
-        move_rt_commands = [
-            [f'git pull --ff-only origin {branch}', pr_repo_loc],
-            [f'git add {rt_log}', pr_repo_loc],
-            [f'git commit -m "PASSED: {job_obj.machine["name"]}'
-             f'.{job_obj.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
-             pr_repo_loc],
-            ['sleep 10', pr_repo_loc],
-            [f'git push origin {branch}', pr_repo_loc]
-        ]
-        job_obj.run_commands(logger, move_rt_commands)
+        bldate = get_bl_date(job_obj)
+        bldir = create_bl_dir(job_obj, bldate, blstore)
+        move_bl_command = [[f'mv {rtbldir}/* {bldir}/', pr_repo_loc]]
+        job_obj.run_commands(logger, move_bl_command)
+        update_rt_sh(job_obj, pr_repo_loc, bldate)
         remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir)
 
 
+def update_rt_sh(job_obj, pr_repo_loc, bldate):
+    logger = logging.getLogger('BL/UPDATE_RT_SH')
+    with open(f'{pr_repo_loc}/tests/rt.sh') as f:
+        with open(f'{pr_repo_loc}/tests/rt.sh.new') as w
+        for line in f:
+            if 'BL_CURR_DIR=develop-' in line:
+                w.write(f'BL_CURR_DIR=develop-{bldate}')
+            else:
+                w.write(line)
+    sys.exit()
+    move_rtsh_command = [
+        [f'git pull --ff-only origin {branch}', pr_repo_loc],
+        [f'mv {pr_repo_loc}/tests/rt.sh.new {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
+
+        [f'git add {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
+        [f'git commit -m "BL JOBS PASSED: {job_obj.machine["name"]}'
+         f'.{job_obj.compiler}. Updated rt.sh with new develop date: '
+         f'{bldate}"',
+         pr_repo_loc],
+        ['sleep 10', pr_repo_loc],
+        [f'git push origin {branch}', pr_repo_loc]
+        ]
+    job_obj.run_commands(logger, move_rtsh_command)
+
+
 def process_logfile(job_obj, logfile):
-    logger = logging.getLogger('RT/PROCESS_LOGFILE')
+    logger = logging.getLogger('BL/PROCESS_LOGFILE')
     rt_dir = []
     if os.path.exists(logfile):
         with open(logfile) as f:
@@ -129,8 +193,8 @@ def process_logfile(job_obj, logfile):
                            STDOUT=False)
     else:
         logger.critical(f'Could not find {job_obj.machine["name"]}'
-                        f'.{job_obj.preq_dict["compiler"]} '
+                        f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]["name"]} log')
         raise FileNotFoundError(f'Could not find {job_obj.machine["name"]}'
-                                f'.{job_obj.preq_dict["compiler"]} '
+                                f'.{job_obj.compiler} '
                                 f'{job_obj.preq_dict["action"]["name"]} log')

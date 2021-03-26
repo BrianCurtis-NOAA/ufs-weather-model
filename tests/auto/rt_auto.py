@@ -47,11 +47,15 @@ def parse_args_in():
 
     # Setup Input Arguments
     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
-    parser.add_argument('-m', '--machine', help='Machine name', required=True,
+    parser.add_argument('-n', '--name', help='Machine Name', required=True,
                         choices=choices, type=str)
-    parser.add_argument('-w', '--workdir', help='Working directory',
+    parser.add_argument('-g', '--group', help='Machine Group',
                         required=True, type=str)
-    parser.add_argument('-b', '--bldir', help='Baseline directory',
+    parser.add_argument('-b', '--basedir', help='Machine Base Directory',
+                        required=True, type=str)
+    parser.add_argument('-s', '--stmp', help='Machine STMP Path',
+                        required=True, type=str)
+    parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
                         required=True, type=str)
 
     # Get Arguments
@@ -64,23 +68,24 @@ def input_data(args):
     ''' Create dictionaries of data needed for processing UFS pull requests '''
     logger = logging.getLogger('INPUT_DATA')
     logger.info('Creating dictionaries for input data')
+
+    # WORKDIR=${BASEDIR}/${GROUP}/${USER}/autort/pr
+    #
+    # NEW_BASELINE=${STMP}/${USER}/FV3_RT/REGRESSION_TEST
+    # BLDIR=${BASEDIR}/${GROUP}/${USER}/RT/NEMSfv3gfs
     machine_dict = {
-        'name': args.machine,
-        'workdir': args.workdir,
-        'bldir': args.bldir
+        'name': args.name,
+        'group': args.group,
+        'basedir': args.basedir,
+        'stmp': args.stmp,
+        'ptmp': args.ptmp
     }
     repo_list_dict = [{
         'name': 'ufs-weather-model',
         'address': 'BrianCurtis-NOAA/ufs-weather-model',
         'base': 'develop'
     }]
-    action_list_dict = [{
-        'name': 'RT',
-        'callback_fnc': 'rt_callback'
-     },
-     {
-        'name': 'BL',
-        'callback_fnc': 'bl_callback'
+    action_list = ['RT', 'BL']
     }]
 
     return machine_dict, repo_list_dict, action_list_dict
@@ -106,24 +111,8 @@ def set_action_from_label(machine, actions, label):
     if not str(label_compiler) in ["intel", "gnu"]:
         return False, False
     action_match = next((action for action in actions
-                         if re.match(action['name'], label_action)), False)
-    if label_action == 'RT':  # SET ACTIONS BASED ON RT COMMAND
-        if label_compiler == "intel":
-            action_match["command"] = 'export RT_COMPILER="intel" '\
-                                      '&& cd tests '\
-                                      '&& /bin/bash --login ./rt.sh -e'
-        elif label_compiler == "gnu":
-            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests '\
-                                      '&& /bin/bash --login '\
-                                      './rt.sh -e -l rt_gnu.conf'
-    elif label_action == 'BL':  # SET ACTIONS BASED ON BL COMMAND
-        if label_compiler == "intel":
-            action_match["command"] = 'export RT_COMPILER="intel" && cd tests \
-                                       && /bin/bash --login ./rt.sh -e -c'
-        elif label_compiler == "gnu":
-            action_match["command"] = 'export RT_COMPILER="gnu" && cd tests \
-                                       && /bin/bash --login \
-                                       ./rt.sh -e -c -l rt_gnu.conf'
+                         if re.match(action, label_action)), False)
+
     logging.info(f'Compiler: {label_compiler}, Action: {action_match}')
     return label_compiler, action_match
 
@@ -140,16 +129,17 @@ def get_preqs_with_actions(repos, machine, ghinterface_obj, actions):
     preq_labels = [{'preq': pr, 'label': label} for pr in each_pr
                    for label in pr.get_labels()]
 
-    return_preq = []
+    jobs = []
+    # return_preq = []
     for pr_label in preq_labels:
         compiler, match = set_action_from_label(machine, actions,
                                                 pr_label['label'])
         if match:
             pr_label['action'] = match.copy()
-            pr_label['compiler'] = compiler
-            return_preq.append(pr_label.copy())
+            # return_preq.append(pr_label.copy())
+            jobs.append(Job(pr_label.copy(), ghinterface_obj, machine, compiler))
 
-    return return_preq
+    return jobs
 
 
 class Job:
@@ -169,17 +159,18 @@ class Job:
         provided by the bash script
     '''
 
-    def __init__(self, preq_dict, ghinterface_obj, machine):
+    def __init__(self, preq_dict, ghinterface_obj, machine, compiler):
         self.logger = logging.getLogger('JOB')
         self.preq_dict = preq_dict
         try:
             self.job_mod = importlib.import_module(
-                           f'jobs.{self.preq_dict["action"]["name"].lower()}')
+                           f'jobs.{self.preq_dict["action"].lower()}')
         except Exception:
             raise ModuleNotFoundError(f'Module: \
-                  {self.preq_dict["action"]["name"]} not found')
+                  {self.preq_dict["action"]} not found')
         self.ghinterface_obj = ghinterface_obj
         self.machine = machine
+        self.compiler = compiler
         self.comment_text = ''
         self.failed_tests = []
 
@@ -195,8 +186,8 @@ class Job:
         # LETS Check the label still exists before the start of the job in the
         # case of multiple jobs
         label_to_check = f'{self.machine["name"]}'\
-                         f'-{self.preq_dict["compiler"]}'\
-                         f'-{self.preq_dict["action"]["name"]}'
+                         f'-{self.compiler}'\
+                         f'-{self.preq_dict["action"]}'
         labels = self.preq_dict['preq'].get_labels()
         label_match = next((label for label in labels
                             if re.match(label.name, label_to_check)), False)
@@ -229,8 +220,8 @@ class Job:
         logger = logging.getLogger('JOB/RUN')
         logger.info(f'Starting Job: {self.preq_dict["label"]}')
         self.comment_text_append(newtext=f'Machine: {self.machine["name"]}')
-        self.comment_text_append(f'Compiler: {self.preq_dict["compiler"]}')
-        self.comment_text_append(f'Job: {self.preq_dict["action"]["name"]}')
+        self.comment_text_append(f'Compiler: {self.compiler}')
+        self.comment_text_append(f'Job: {self.preq_dict["action"]}')
         if self.check_label_before_job_start():
             try:
                 logger.info('Calling remove_pr_label')
@@ -254,8 +245,8 @@ class Job:
         self.comment_text_append('Please make changes and add '
                                  'the following label back:')
         self.comment_text_append(f'{self.machine["name"]}'
-                                 f'-{self.preq_dict["compiler"]}'
-                                 f'-{self.preq_dict["action"]["name"]}')
+                                 f'-{self.compiler}'
+                                 f'-{self.preq_dict["action"]}')
 
         self.preq_dict['preq'].create_issue_comment(self.comment_text)
 

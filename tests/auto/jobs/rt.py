@@ -5,20 +5,43 @@ import os
 
 
 def run(job_obj):
-    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj)
+    workdir = set_directories(job_obj)
+    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj, workdir)
     run_regression_test(job_obj, pr_repo_loc)
     post_process(job_obj, pr_repo_loc, repo_dir_str, branch)
 
 
+def set_directories(job_obj):
+    if job_obj.machine['name'] == 'hera':
+        workdir = '/scratch1/NCEPDEV/nems/emc.nemspara/autort/pr'
+    elif job_obj.machine['name'] == 'jet':
+        workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
+    elif job_obj.machine['name'] == 'gaea':
+        workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
+    elif job_obj.machine['name'] == 'orion':
+        workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
+    elif job_obj.machine['name'] == 'cheyenne':
+        workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
+    else:
+        raise KeyError(f'Machine {job_obj.machine["name"]} is not '\
+                        'supported for this job')
+
+    logger.info(f'machine: {job_obj.machine["name"]}')
+    logger.info(f'workdir: {workdir}')
+    logger.info(f'blstore: {blstore}')
+    logger.info(f'bldir: {bldir}')
+
+    return workdir
+
+
 def run_regression_test(job_obj, pr_repo_loc):
     logger = logging.getLogger('RT/RUN_REGRESSION_TEST')
-    compiler = job_obj.preq_dict["compiler"]
-    if compiler == 'gnu':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
+    if job_obj.compiler == 'gnu':
+        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
                        '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf',
                        pr_repo_loc]]
-    elif compiler == 'intel':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
+    elif job_obj.compiler == 'intel':
+        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
                        '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
     job_obj.run_commands(logger, rt_command)
 
@@ -32,7 +55,7 @@ def remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir):
     job_obj.run_commands(logger, rm_command)
 
 
-def clone_pr_repo(job_obj):
+def clone_pr_repo(job_obj, workdir):
     ''' clone the GitHub pull request repo, via command line '''
     logger = logging.getLogger('RT/CLONE_PR_REPO')
     repo_name = job_obj.preq_dict['preq'].head.repo.name
@@ -41,13 +64,13 @@ def clone_pr_repo(job_obj):
     git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
     logger.debug(f'GIT URL: {git_url}')
     logger.info('Starting repo clone')
-    repo_dir_str = f'{job_obj.machine["workdir"]}/'\
+    repo_dir_str = f'{workdir}/'\
                    f'{str(job_obj.preq_dict["preq"].id)}/'\
                    f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
     create_repo_commands = [
-        [f'mkdir -p "{repo_dir_str}"', job_obj.machine['workdir']],
+        [f'mkdir -p "{repo_dir_str}"', workdir],
         [f'git clone -b {branch} {git_url}', repo_dir_str],
         ['git submodule update --init --recursive',
          f'{repo_dir_str}/{repo_name}'],
@@ -67,7 +90,7 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
     ''' This is the callback function associated with the "RT" command '''
     logger = logging.getLogger('RT/MOVE_RT_LOGS')
     rt_log = f'tests/RegressionTests_{job_obj.machine["name"]}'\
-             f'.{job_obj.preq_dict["compiler"]}.log'
+             f'.{job_obj.compiler}.log'
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
     if logfile_pass:
@@ -75,7 +98,7 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
             [f'git pull --ff-only origin {branch}', pr_repo_loc],
             [f'git add {rt_log}', pr_repo_loc],
             [f'git commit -m "PASSED: {job_obj.machine["name"]}'
-             f'.{job_obj.preq_dict["compiler"]}. Log file uploaded. skip-ci"',
+             f'.{job_obj.compiler}. Log file uploaded. skip-ci"',
              pr_repo_loc],
             ['sleep 10', pr_repo_loc],
             [f'git push origin {branch}', pr_repo_loc]
@@ -102,8 +125,8 @@ def process_logfile(job_obj, logfile):
                            STDOUT=False)
     else:
         logger.critical(f'Could not find {job_obj.machine["name"]}'
-                        f'.{job_obj.preq_dict["compiler"]} '
+                        f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]["name"]} log')
         raise FileNotFoundError(f'Could not find {job_obj.machine["name"]}'
-                                f'.{job_obj.preq_dict["compiler"]} '
+                                f'.{job_obj.compiler} '
                                 f'{job_obj.preq_dict["action"]["name"]} log')
