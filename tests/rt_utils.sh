@@ -375,6 +375,8 @@ rocoto_create_compile_task() {
     echo "  </metatask>" >> $ROCOTO_XML
   fi
 
+  rocoto_cmd="&PATHRT;/compile.sh $MACHINE_ID \"${MAKE_OPT}\" $COMPILE_NR"
+
   # serialize WW3 builds. FIXME
   DEP_STRING=""
   if [[ ${MAKE_OPT^^} =~ "WW3=Y" && ${COMPILE_PREV_WW3_NR} != '' ]]; then
@@ -391,6 +393,7 @@ rocoto_create_compile_task() {
   fi
   if [[ ${MACHINE_ID} == wcoss_cray ]]; then
     BUILD_CORES=24
+    rocoto_cmd="aprun -n 1 -j 1 -N 1 -d $BUILD_CORES $rocoto_cmd"
     NATIVE="<exclusive></exclusive> <envar><name>PATHTR</name><value>&PATHTR;</value></envar>"
   fi
   if [[ ${MACHINE_ID} == jet ]]; then
@@ -403,15 +406,14 @@ rocoto_create_compile_task() {
   cat << EOF >> $ROCOTO_XML
   <task name="compile_${COMPILE_NR}" maxtries="3">
     $DEP_STRING
-    <command>&PATHRT;/run_compile.sh &PATHRT; &RUNDIR_ROOT; "${MAKE_OPT}" ${COMPILE_NR}</command>
+    <command>$rocoto_cmd</command>
     <jobname>compile_${COMPILE_NR}</jobname>
     <account>${ACCNR}</account>
     <queue>${COMPILE_QUEUE}</queue>
     <partition>${PARTITION}</partition>
     <cores>${BUILD_CORES}</cores>
     <walltime>${BUILD_WALLTIME}</walltime>
-    <stdout>&RUNDIR_ROOT;/compile_${COMPILE_NR}/out</stdout>
-    <stderr>&RUNDIR_ROOT;/compile_${COMPILE_NR}/err</stderr>
+    <join>&LOG;/compile_${COMPILE_NR}.log</join>
     ${NATIVE}
   </task>
 EOF
@@ -448,8 +450,7 @@ rocoto_create_run_task() {
       <partition>${PARTITION}</partition>
       <nodes>${NODES}:ppn=${TPN}</nodes>
       <walltime>00:${WLCLK}:00</walltime>
-      <stdout>&RUNDIR_ROOT;/${TEST_NAME}${RT_SUFFIX}/out</stdout>
-      <stderr>&RUNDIR_ROOT;/${TEST_NAME}${RT_SUFFIX}/err</stderr>
+      <join>&LOG;/run_${TEST_NR}_${TEST_NAME}${RT_SUFFIX}.log</join>
       ${NATIVE}
     </task>
 EOF
