@@ -113,20 +113,20 @@ def process_logfile(job_obj, logfile):
     if os.path.exists(logfile):
         with open(logfile) as f:
             for line in f:
-                if 'FAIL' in line:
+                if 'FAIL' in line and 'Test' in line:
                     job_obj.comment_text_append(f'{line}')
-                if 'working dir' in line and not rt_dir:
+                elif 'working dir' in line and not rt_dir:
                     rt_dir = os.path.split(line.split()[-1])[0]
                     job_obj.comment_text_append(f'Please manually delete: '
                                                 f'{rt_dir}')
                 elif 'SUCCESSFUL' in line:
                     return rt_dir, True
-        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]["name"]}',
+        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}',
                            STDOUT=False)
     else:
         logger.critical(f'Could not find {job_obj.machine}'
                         f'.{job_obj.compiler} '
-                        f'{job_obj.preq_dict["action"]["name"]} log')
+                        f'{job_obj.preq_dict["action"]} log')
         raise FileNotFoundError(f'Could not find {job_obj.machine}'
                                 f'.{job_obj.compiler} '
-                                f'{job_obj.preq_dict["action"]["name"]} log')
+                                f'{job_obj.preq_dict["action"]} log')
