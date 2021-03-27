@@ -7,7 +7,6 @@ This script should be started through rt_auto.sh so that env vars are set up
 prior to start.
 """
 from github import Github as gh
-import argparse
 import datetime
 import subprocess
 import re
@@ -31,6 +30,18 @@ class GHInterface:
 
     def __init__(self):
         self.logger = logging.getLogger('GHINTERFACE')
+
+        filename = 'accesstoken'
+
+        if os.path.exists(filename):
+            if oct(os.stat(filename).st_mode)[-3:] != 600:
+                with open(filename) as f:
+                    os.environ['ghapitoken'] = f.readline().strip('\n')
+            else:
+                raise Exception('File permission needs to be "600" ')
+        else:
+            raise FileNotFoundError('Cannot find file "accesstoken"')
+
         try:
             self.client = gh(os.getenv('ghapitoken'))
         except Exception as e:
@@ -38,52 +49,52 @@ class GHInterface:
             raise(e)
 
 
-def parse_args_in():
-    ''' Parse all input arguments coming from rt_auto.sh '''
-    logger = logging.getLogger('PARSE_ARGS_IN')
-    # Create Parse
-    logger.info('Parsing input arguments')
-    parser = argparse.ArgumentParser()
+# def parse_args_in():
+#     ''' Parse all input arguments coming from rt_auto.sh '''
+#     logger = logging.getLogger('PARSE_ARGS_IN')
+#     # Create Parse
+#     logger.info('Parsing input arguments')
+#     parser = argparse.ArgumentParser()
+#
+#     # Setup Input Arguments
+#     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
+#     parser.add_argument('-n', '--name', help='Machine Name', required=True,
+#                         choices=choices, type=str)
+#     # parser.add_argument('-g', '--group', help='Machine Group',
+#     #                     required=True, type=str)
+#     # parser.add_argument('-b', '--basedir', help='Machine Base Directory',
+#     #                     required=True, type=str)
+#     # parser.add_argument('-s', '--stmp', help='Machine STMP Path',
+#     #                     required=True, type=str)
+#     # parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
+#     #                     required=True, type=str)
+#
+#     # Get Arguments
+#     args = parser.parse_args()
+#
+#     return args
 
-    # Setup Input Arguments
-    choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
-    parser.add_argument('-n', '--name', help='Machine Name', required=True,
-                        choices=choices, type=str)
-    # parser.add_argument('-g', '--group', help='Machine Group',
-    #                     required=True, type=str)
-    # parser.add_argument('-b', '--basedir', help='Machine Base Directory',
-    #                     required=True, type=str)
-    # parser.add_argument('-s', '--stmp', help='Machine STMP Path',
-    #                     required=True, type=str)
-    # parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
-    #                     required=True, type=str)
 
-    # Get Arguments
-    args = parser.parse_args()
-
-    return args
-
-
-def input_data(args):
-    ''' Create dictionaries of data needed for processing UFS pull requests '''
-    logger = logging.getLogger('INPUT_DATA')
-    logger.info('Creating dictionaries for input data')
-
-    # WORKDIR=${BASEDIR}/${GROUP}/${USER}/autort/pr
+# def input_data(args):
+#     ''' Create dictionaries of data needed for processing UFS pull requests '''
+#     logger = logging.getLogger('INPUT_DATA')
+#     logger.info('Creating dictionaries for input data')
+#
+#     # WORKDIR=${BASEDIR}/${GROUP}/${USER}/autort/pr
+#     #
+#     # NEW_BASELINE=${STMP}/${USER}/FV3_RT/REGRESSION_TEST
+#     # BLDIR=${BASEDIR}/${GROUP}/${USER}/RT/NEMSfv3gfs
+#     machine_dict = {
+#         'name': args.name
+#     }
+#     repo_list_dict = [{
+#         'name': 'ufs-weather-model',
+#         'address': 'BrianCurtis-NOAA/ufs-weather-model',
+#         'base': 'develop'
+#     }]
+#     action_list = ['RT', 'BL']
     #
-    # NEW_BASELINE=${STMP}/${USER}/FV3_RT/REGRESSION_TEST
-    # BLDIR=${BASEDIR}/${GROUP}/${USER}/RT/NEMSfv3gfs
-    machine_dict = {
-        'name': args.name
-    }
-    repo_list_dict = [{
-        'name': 'ufs-weather-model',
-        'address': 'BrianCurtis-NOAA/ufs-weather-model',
-        'base': 'develop'
-    }]
-    action_list = ['RT', 'BL']
-
-    return machine_dict, repo_list_dict, action_list
+    # return machine_dict, repo_list_dict, action_list
 
 
 def set_action_from_label(machine, actions, label):
@@ -100,7 +111,7 @@ def set_action_from_label(machine, actions, label):
     label_compiler = split_label[1]
     label_action = split_label[2]
     # check machine name matches
-    if not re.match(label_machine, machine['name']):
+    if not re.match(label_machine, machine):
         return False, False
     # Compiler must be intel or gnu
     if not str(label_compiler) in ["intel", "gnu"]:
@@ -180,7 +191,7 @@ class Job:
     def check_label_before_job_start(self):
         # LETS Check the label still exists before the start of the job in the
         # case of multiple jobs
-        label_to_check = f'{self.machine["name"]}'\
+        label_to_check = f'{self.machine}'\
                          f'-{self.compiler}'\
                          f'-{self.preq_dict["action"]}'
         labels = self.preq_dict['preq'].get_labels()
@@ -214,7 +225,7 @@ class Job:
     def run(self):
         logger = logging.getLogger('JOB/RUN')
         logger.info(f'Starting Job: {self.preq_dict["label"]}')
-        self.comment_text_append(newtext=f'Machine: {self.machine["name"]}')
+        self.comment_text_append(newtext=f'Machine: {self.machine}')
         self.comment_text_append(f'Compiler: {self.compiler}')
         self.comment_text_append(f'Job: {self.preq_dict["action"]}')
         if self.check_label_before_job_start():
@@ -239,7 +250,7 @@ class Job:
         logger.info(f'Comment Text: {self.comment_text}')
         self.comment_text_append('Please make changes and add '
                                  'the following label back:')
-        self.comment_text_append(f'{self.machine["name"]}'
+        self.comment_text_append(f'{self.machine}'
                                  f'-{self.compiler}'
                                  f'-{self.preq_dict["action"]}')
 
@@ -254,6 +265,37 @@ class Job:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
             logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
 
+def setup_env():
+    hostname = os.getenv('HOSTNAME')
+    if bool(re.match(re.compile('hfe.+'), hostname)):
+        machine = 'hera'
+    elif bool(re.match(re.compile('fe.+'), hostname)):
+        machine = 'jet'
+        os.environ['ACCNR'] = 'h-nems'
+    elif bool(re.match(re.compile('gaea.+'), hostname)):
+        machine = 'gaea'
+        os.environ['ACCNR'] = 'nggps_emc'
+    elif bool(re.match(re.compile('Orion-login.+'), hostname)):
+        machine = 'orion'
+    elif bool(re.match(re.compile('.+.cheyenne.ucar.edu'), hostname)):
+        machine = 'cheyenne'
+        os.environ['ACCNR'] = 'P48503002'
+    else:
+        raise KeyError(f'Hostname: {hostname} does not match '\
+                        'for a supported system. Exiting.')
+
+    # Dictionary of GitHub repositories to check
+    repo_dict = [{
+        'name': 'ufs-weather-model',
+        'address': 'BrianCurtis-NOAA/ufs-weather-model',
+        'base': 'develop'
+    }]
+
+    # Approved Actions
+    action_list = ['RT', 'BL']
+
+    return machine, repo_dict, action_list
+
 
 def main():
 
@@ -265,26 +307,20 @@ def main():
     logger = logging.getLogger('MAIN')
     logger.info('Starting Script')
 
-    # handle input args
-    logger.info('Parsing input args')
-    args = parse_args_in()
-
-    # get input data
-    logger.info('Calling input_data().')
-    machine, repos, actions = input_data(args)
+    # setup environment
+    logger.info('Getting the environment setup')
+    machine, repos, actions = setup_env()
 
     # setup interface with GitHub
     logger.info('Setting up GitHub interface.')
     ghinterface_obj = GHInterface()
 
     # get all pull requests from the GitHub object
+    # and turn them into Job objects
     logger.info('Getting all pull requests, '
                 'labels and actions applicable to this machine.')
     jobs = get_preqs_with_actions(repos, machine,
                                        ghinterface_obj, actions)
-    # add Job objects and run them
-    # logger.info('Adding all jobs to an object list and running them.')
-    # jobs = [Job(pullreq, ghinterface_obj, machine) for pullreq in preq_dict]
     [job.run() for job in jobs]
 
     logger.info('Script Finished')

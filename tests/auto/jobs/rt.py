@@ -14,21 +14,21 @@ def run(job_obj):
 
 def set_directories(job_obj):
     logger = logging.getLogger('RT/SET_DIRECTORIES')
-    if job_obj.machine['name'] == 'hera':
+    if job_obj.machine == 'hera':
         workdir = '/scratch1/NCEPDEV/nems/Brian.Curtis/autort/pr'
-    elif job_obj.machine['name'] == 'jet':
+    elif job_obj.machine == 'jet':
         workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
-    elif job_obj.machine['name'] == 'gaea':
+    elif job_obj.machine == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
-    elif job_obj.machine['name'] == 'orion':
+    elif job_obj.machine == 'orion':
         workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
-    elif job_obj.machine['name'] == 'cheyenne':
+    elif job_obj.machine == 'cheyenne':
         workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
     else:
-        raise KeyError(f'Machine {job_obj.machine["name"]} is not '\
+        raise KeyError(f'Machine {job_obj.machine} is not '\
                         'supported for this job')
 
-    logger.info(f'machine: {job_obj.machine["name"]}')
+    logger.info(f'machine: {job_obj.machine}')
     logger.info(f'workdir: {workdir}')
 
     return workdir
@@ -89,7 +89,7 @@ def clone_pr_repo(job_obj, workdir):
 def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
     ''' This is the callback function associated with the "RT" command '''
     logger = logging.getLogger('RT/MOVE_RT_LOGS')
-    rt_log = f'tests/RegressionTests_{job_obj.machine["name"]}'\
+    rt_log = f'tests/RegressionTests_{job_obj.machine}'\
              f'.{job_obj.compiler}.log'
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
@@ -97,7 +97,7 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
         move_rt_commands = [
             [f'git pull --ff-only origin {branch}', pr_repo_loc],
             [f'git add {rt_log}', pr_repo_loc],
-            [f'git commit -m "PASSED: {job_obj.machine["name"]}'
+            [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
              f'.{job_obj.compiler}. Log file uploaded. skip-ci"',
              pr_repo_loc],
             ['sleep 10', pr_repo_loc],
@@ -124,9 +124,9 @@ def process_logfile(job_obj, logfile):
         job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]["name"]}',
                            STDOUT=False)
     else:
-        logger.critical(f'Could not find {job_obj.machine["name"]}'
+        logger.critical(f'Could not find {job_obj.machine}'
                         f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]["name"]} log')
-        raise FileNotFoundError(f'Could not find {job_obj.machine["name"]}'
+        raise FileNotFoundError(f'Could not find {job_obj.machine}'
                                 f'.{job_obj.compiler} '
                                 f'{job_obj.preq_dict["action"]["name"]} log')

@@ -15,36 +15,36 @@ def run(job_obj):
 
 def set_directories(job_obj):
     logger = logging.getLogger('BL/SET_DIRECTORIES')
-    if job_obj.machine['name'] == 'hera':
+    if job_obj.machine == 'hera':
         workdir = '/scratch1/NCEPDEV/nems/Brian.Curtis/autort/pr'
         blstore = '/scratch1/NCEPDEV/nems/Brian.Curtis/RT/NEMSfv3gfs'
         rtbldir = '/scratch1/NCEPDEV/stmp4/Brian.Curtis/FV3_RT/'\
                 f'REGRESSION_TEST_{job_obj.compiler.upper()}'
-    elif job_obj.machine['name'] == 'jet':
+    elif job_obj.machine == 'jet':
         workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
         blstore = '/lfs4/HFIP/hfv3gfs/RT/NEMSfv3gfs/'
         rtbldir = '/lfs4/HFIP/hfv3gfs/emc.nemspara/RT_BASELINE/'\
                f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler.upper()}'
-    elif job_obj.machine['name'] == 'gaea':
+    elif job_obj.machine == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
         blstore = '/lustre/f2/pdata/esrl/gsd/ufs/ufs-weather-model/RT'
         rtbldir = '/lustre/f2/scratch/Brian.Curtis/FV3_RT/'\
                f'REGRESSION_TEST_{job_obj.compiler.upper()}'
-    elif job_obj.machine['name'] == 'orion':
+    elif job_obj.machine == 'orion':
         workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
         blstore = '/work/noaa/nems/emc.nemspara/RT/NEMSfv3gfs'
         rtbldir = '/work/noaa/stmp/bcurtis/stmp/bcurtis/FV3_RT/'\
                f'REGRESSION_TEST_{job_obj.compiler.upper()}'
-    elif job_obj.machine['name'] == 'cheyenne':
+    elif job_obj.machine == 'cheyenne':
         workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
         blstore = '/glade/p/ral/jntp/GMTB/ufs-weather-model/RT'
         rtbldir = '/glade/work/heinzell/FV3_RT/'\
                f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     else:
-        raise KeyError(f'Machine {job_obj.machine["name"]} is not '\
+        raise KeyError(f'Machine {job_obj.machine} is not '\
                         'supported for this job')
 
-    logger.info(f'machine: {job_obj.machine["name"]}')
+    logger.info(f'machine: {job_obj.machine}')
     logger.info(f'workdir: {workdir}')
     logger.info(f'blstore: {blstore}')
     logger.info(f'rtbldir: {rtbldir}')
@@ -139,7 +139,7 @@ def clone_pr_repo(job_obj, workdir):
 
 def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore, branch):
     logger = logging.getLogger('BL/MOVE_RT_LOGS')
-    rt_log = f'tests/RegressionTests_{job_obj.machine["name"]}'\
+    rt_log = f'tests/RegressionTests_{job_obj.machine}'\
              f'.{job_obj.compiler}.log'
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
@@ -167,7 +167,7 @@ def update_rt_sh(job_obj, pr_repo_loc, bldate, branch):
         [f'mv {pr_repo_loc}/tests/rt.sh.new {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
 
         [f'git add {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
-        [f'git commit -m "BL JOBS PASSED: {job_obj.machine["name"]}'
+        [f'git commit -m "BL JOBS PASSED: {job_obj.machine}'
          f'.{job_obj.compiler}. Updated rt.sh with new develop date: '
          f'{bldate}"',
          pr_repo_loc],
@@ -194,9 +194,9 @@ def process_logfile(job_obj, logfile):
         job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]["name"]}',
                            STDOUT=False)
     else:
-        logger.critical(f'Could not find {job_obj.machine["name"]}'
+        logger.critical(f'Could not find {job_obj.machine}'
                         f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]["name"]} log')
-        raise FileNotFoundError(f'Could not find {job_obj.machine["name"]}'
+        raise FileNotFoundError(f'Could not find {job_obj.machine}'
                                 f'.{job_obj.compiler} '
                                 f'{job_obj.preq_dict["action"]["name"]} log')
