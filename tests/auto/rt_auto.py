@@ -49,14 +49,14 @@ def parse_args_in():
     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
     parser.add_argument('-n', '--name', help='Machine Name', required=True,
                         choices=choices, type=str)
-    parser.add_argument('-g', '--group', help='Machine Group',
-                        required=True, type=str)
-    parser.add_argument('-b', '--basedir', help='Machine Base Directory',
-                        required=True, type=str)
-    parser.add_argument('-s', '--stmp', help='Machine STMP Path',
-                        required=True, type=str)
-    parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
-                        required=True, type=str)
+    # parser.add_argument('-g', '--group', help='Machine Group',
+    #                     required=True, type=str)
+    # parser.add_argument('-b', '--basedir', help='Machine Base Directory',
+    #                     required=True, type=str)
+    # parser.add_argument('-s', '--stmp', help='Machine STMP Path',
+    #                     required=True, type=str)
+    # parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
+    #                     required=True, type=str)
 
     # Get Arguments
     args = parser.parse_args()
@@ -74,11 +74,7 @@ def input_data(args):
     # NEW_BASELINE=${STMP}/${USER}/FV3_RT/REGRESSION_TEST
     # BLDIR=${BASEDIR}/${GROUP}/${USER}/RT/NEMSfv3gfs
     machine_dict = {
-        'name': args.name,
-        'group': args.group,
-        'basedir': args.basedir,
-        'stmp': args.stmp,
-        'ptmp': args.ptmp
+        'name': args.name
     }
     repo_list_dict = [{
         'name': 'ufs-weather-model',
@@ -86,9 +82,8 @@ def input_data(args):
         'base': 'develop'
     }]
     action_list = ['RT', 'BL']
-    }]
 
-    return machine_dict, repo_list_dict, action_list_dict
+    return machine_dict, repo_list_dict, action_list
 
 
 def set_action_from_label(machine, actions, label):
@@ -135,7 +130,7 @@ def get_preqs_with_actions(repos, machine, ghinterface_obj, actions):
         compiler, match = set_action_from_label(machine, actions,
                                                 pr_label['label'])
         if match:
-            pr_label['action'] = match.copy()
+            pr_label['action'] = match
             # return_preq.append(pr_label.copy())
             jobs.append(Job(pr_label.copy(), ghinterface_obj, machine, compiler))
 
@@ -285,11 +280,11 @@ def main():
     # get all pull requests from the GitHub object
     logger.info('Getting all pull requests, '
                 'labels and actions applicable to this machine.')
-    preq_dict = get_preqs_with_actions(repos, machine,
+    jobs = get_preqs_with_actions(repos, machine,
                                        ghinterface_obj, actions)
     # add Job objects and run them
-    logger.info('Adding all jobs to an object list and running them.')
-    jobs = [Job(pullreq, ghinterface_obj, machine) for pullreq in preq_dict]
+    # logger.info('Adding all jobs to an object list and running them.')
+    # jobs = [Job(pullreq, ghinterface_obj, machine) for pullreq in preq_dict]
     [job.run() for job in jobs]
 
     logger.info('Script Finished')

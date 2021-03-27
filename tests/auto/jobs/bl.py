@@ -7,39 +7,39 @@ import sys
 
 def run(job_obj):
     logger = logging.getLogger('BL/RUN')
-    workdir, bldir, blstore = set_directories(job_obj)
-    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj, machine)
+    workdir, rtbldir, blstore = set_directories(job_obj)
+    branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj, workdir)
     run_regression_test(job_obj, pr_repo_loc)
-    post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore)
+    post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore, branch)
 
 
 def set_directories(job_obj):
     logger = logging.getLogger('BL/SET_DIRECTORIES')
     if job_obj.machine['name'] == 'hera':
-        workdir = '/scratch1/NCEPDEV/nems/emc.nemspara/autort/pr'
-        blstore = '/scratch1/NCEPDEV/nems/emc.nemspara/RT/NEMSfv3gfs'
-        rtbldir = '/scratch1/NCEPDEV/stmp4/emc.nemspara/FV3_RT/'\
-                f'REGRESSION_TEST_{job_obj.compiler}'
+        workdir = '/scratch1/NCEPDEV/nems/Brian.Curtis/autort/pr'
+        blstore = '/scratch1/NCEPDEV/nems/Brian.Curtis/RT/NEMSfv3gfs'
+        rtbldir = '/scratch1/NCEPDEV/stmp4/Brian.Curtis/FV3_RT/'\
+                f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine['name'] == 'jet':
         workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
         blstore = '/lfs4/HFIP/hfv3gfs/RT/NEMSfv3gfs/'
         rtbldir = '/lfs4/HFIP/hfv3gfs/emc.nemspara/RT_BASELINE/'\
-               f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler}'
+               f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine['name'] == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
         blstore = '/lustre/f2/pdata/esrl/gsd/ufs/ufs-weather-model/RT'
         rtbldir = '/lustre/f2/scratch/Brian.Curtis/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler}'
+               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine['name'] == 'orion':
         workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
         blstore = '/work/noaa/nems/emc.nemspara/RT/NEMSfv3gfs'
         rtbldir = '/work/noaa/stmp/bcurtis/stmp/bcurtis/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler}'
+               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine['name'] == 'cheyenne':
         workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
         blstore = '/glade/p/ral/jntp/GMTB/ufs-weather-model/RT'
         rtbldir = '/glade/work/heinzell/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler}'
+               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     else:
         raise KeyError(f'Machine {job_obj.machine["name"]} is not '\
                         'supported for this job')
@@ -49,7 +49,7 @@ def set_directories(job_obj):
     logger.info(f'blstore: {blstore}')
     logger.info(f'rtbldir: {rtbldir}')
 
-    return workdir, bldir, blstore
+    return workdir, rtbldir, blstore
 
 
 def create_bl_dir(job_obj, bldate, blstore):
@@ -59,7 +59,6 @@ def create_bl_dir(job_obj, bldate, blstore):
     if os.path.exists(bldir):
         raise FileExistsError(f'Baseline dir: {bldir} exists. It should not.')
     else:
-        print("IM HERE GEEZ")
         os.makedirs(bldir)
         if not os.path.exists(bldir):
             raise Exception(f'Something went wrong creating {bldir}')
@@ -70,16 +69,19 @@ def create_bl_dir(job_obj, bldate, blstore):
 def get_bl_date(job_obj):
     logger = logging.getLogger('BL/GET_BL_DATE')
     for line in job_obj.preq_dict['preq'].body.splitlines():
-        if 'BLDIR:' in line:
+        if 'BL_DATE:' in line:
             bldate = line
-            bldate = bldate.replace('BLDIR:', '')
+            bldate = bldate.replace('BL_DATE:', '')
             bldate = bldate.replace(' ', '')
-        bl_format = '%Y%m%d'
-        try:
-            datetime.datetime.strptime(bldate, bl_format)
-        except ValueError:
-            print(f'Date {bldate} is not formatted YYYYMMDD')
-            raise ValueError
+            if len(bldate) != 8:
+                raise ValueError(f'Date: {bldate} is not formatted YYYYMMDD')
+            logger.info(f'bldate: {bldate}')
+            bl_format = '%Y%m%d'
+            try:
+                datetime.datetime.strptime(bldate, bl_format)
+            except ValueError:
+                logger.info(f'Date {bldate} is not formatted YYYYMMDD')
+                raise ValueError
     return bldate
 
 
@@ -119,7 +121,7 @@ def clone_pr_repo(job_obj, workdir):
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
     create_repo_commands = [
-        [f'mkdir -p "{repo_dir_str}"', workdir],
+        [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
         [f'git clone -b {branch} {git_url}', repo_dir_str],
         ['git submodule update --init --recursive',
          f'{repo_dir_str}/{repo_name}'],
@@ -135,7 +137,7 @@ def clone_pr_repo(job_obj, workdir):
     return branch, pr_repo_loc, repo_dir_str
 
 
-def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore):
+def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore, branch):
     logger = logging.getLogger('BL/MOVE_RT_LOGS')
     rt_log = f'tests/RegressionTests_{job_obj.machine["name"]}'\
              f'.{job_obj.compiler}.log'
@@ -146,21 +148,21 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, blstore):
         bldir = create_bl_dir(job_obj, bldate, blstore)
         move_bl_command = [[f'mv {rtbldir}/* {bldir}/', pr_repo_loc]]
         job_obj.run_commands(logger, move_bl_command)
-        update_rt_sh(job_obj, pr_repo_loc, bldate)
+        update_rt_sh(job_obj, pr_repo_loc, bldate, branch)
         remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir)
 
 
-def update_rt_sh(job_obj, pr_repo_loc, bldate):
+def update_rt_sh(job_obj, pr_repo_loc, bldate, branch):
     logger = logging.getLogger('BL/UPDATE_RT_SH')
-    with open(f'{pr_repo_loc}/tests/rt.sh') as f:
-        with open(f'{pr_repo_loc}/tests/rt.sh.new') as w
-        for line in f:
-            if 'BL_CURR_DIR=develop-' in line:
-                w.write(f'BL_CURR_DIR=develop-{bldate}')
-            else:
-                w.write(line)
-    sys.exit()
-    move_rtsh_command = [
+    with open(f'{pr_repo_loc}/tests/rt.sh', 'r') as f:
+        with open(f'{pr_repo_loc}/tests/rt.sh.new', 'w') as w:
+            for line in f:
+                if 'BL_CURR_DIR=develop-' in line:
+                    w.write(f'BL_CURR_DIR=develop-{bldate}\n')
+                else:
+                    w.write(line)
+
+    move_rtsh_commands = [
         [f'git pull --ff-only origin {branch}', pr_repo_loc],
         [f'mv {pr_repo_loc}/tests/rt.sh.new {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
 
@@ -172,7 +174,7 @@ def update_rt_sh(job_obj, pr_repo_loc, bldate):
         ['sleep 10', pr_repo_loc],
         [f'git push origin {branch}', pr_repo_loc]
         ]
-    job_obj.run_commands(logger, move_rtsh_command)
+    job_obj.run_commands(logger, move_rtsh_commands)
 
 
 def process_logfile(job_obj, logfile):

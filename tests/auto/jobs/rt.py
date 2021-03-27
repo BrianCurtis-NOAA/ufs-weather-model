@@ -5,6 +5,7 @@ import os
 
 
 def run(job_obj):
+    logger = logging.getLogger('RT/RUN')
     workdir = set_directories(job_obj)
     branch, pr_repo_loc, repo_dir_str = clone_pr_repo(job_obj, workdir)
     run_regression_test(job_obj, pr_repo_loc)
@@ -12,8 +13,9 @@ def run(job_obj):
 
 
 def set_directories(job_obj):
+    logger = logging.getLogger('RT/SET_DIRECTORIES')
     if job_obj.machine['name'] == 'hera':
-        workdir = '/scratch1/NCEPDEV/nems/emc.nemspara/autort/pr'
+        workdir = '/scratch1/NCEPDEV/nems/Brian.Curtis/autort/pr'
     elif job_obj.machine['name'] == 'jet':
         workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
     elif job_obj.machine['name'] == 'gaea':
@@ -28,8 +30,6 @@ def set_directories(job_obj):
 
     logger.info(f'machine: {job_obj.machine["name"]}')
     logger.info(f'workdir: {workdir}')
-    logger.info(f'blstore: {blstore}')
-    logger.info(f'bldir: {bldir}')
 
     return workdir
 
@@ -70,7 +70,7 @@ def clone_pr_repo(job_obj, workdir):
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
     create_repo_commands = [
-        [f'mkdir -p "{repo_dir_str}"', workdir],
+        [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
         [f'git clone -b {branch} {git_url}', repo_dir_str],
         ['git submodule update --init --recursive',
          f'{repo_dir_str}/{repo_name}'],
