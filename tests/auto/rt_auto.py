@@ -49,54 +49,6 @@ class GHInterface:
             raise(e)
 
 
-# def parse_args_in():
-#     ''' Parse all input arguments coming from rt_auto.sh '''
-#     logger = logging.getLogger('PARSE_ARGS_IN')
-#     # Create Parse
-#     logger.info('Parsing input arguments')
-#     parser = argparse.ArgumentParser()
-#
-#     # Setup Input Arguments
-#     choices = ['cheyenne', 'hera', 'orion', 'gaea', 'jet', 'wcoss_dell_p3']
-#     parser.add_argument('-n', '--name', help='Machine Name', required=True,
-#                         choices=choices, type=str)
-#     # parser.add_argument('-g', '--group', help='Machine Group',
-#     #                     required=True, type=str)
-#     # parser.add_argument('-b', '--basedir', help='Machine Base Directory',
-#     #                     required=True, type=str)
-#     # parser.add_argument('-s', '--stmp', help='Machine STMP Path',
-#     #                     required=True, type=str)
-#     # parser.add_argument('-p', '--ptmp', help='Machine PTMP Path',
-#     #                     required=True, type=str)
-#
-#     # Get Arguments
-#     args = parser.parse_args()
-#
-#     return args
-
-
-# def input_data(args):
-#     ''' Create dictionaries of data needed for processing UFS pull requests '''
-#     logger = logging.getLogger('INPUT_DATA')
-#     logger.info('Creating dictionaries for input data')
-#
-#     # WORKDIR=${BASEDIR}/${GROUP}/${USER}/autort/pr
-#     #
-#     # NEW_BASELINE=${STMP}/${USER}/FV3_RT/REGRESSION_TEST
-#     # BLDIR=${BASEDIR}/${GROUP}/${USER}/RT/NEMSfv3gfs
-#     machine_dict = {
-#         'name': args.name
-#     }
-#     repo_list_dict = [{
-#         'name': 'ufs-weather-model',
-#         'address': 'BrianCurtis-NOAA/ufs-weather-model',
-#         'base': 'develop'
-#     }]
-#     action_list = ['RT', 'BL']
-    #
-    # return machine_dict, repo_list_dict, action_list
-
-
 def set_action_from_label(machine, actions, label):
     ''' Match the label that initiates a job with an action in the dict'''
     # <machine>-<compiler>-<test> i.e. hera-gnu-RT
@@ -231,13 +183,9 @@ class Job:
         if self.check_label_before_job_start():
             try:
                 logger.info('Calling remove_pr_label')
-                # self.remove_pr_label()
+                self.remove_pr_label()
                 logger.info('Calling Job to Run')
                 self.job_mod.run(self)
-                # logger.info('Calling clone_pr_repo')
-                # self.clone_pr_repo()
-                # logger.info('Calling execute_action')
-                # self.execute_action()
             except Exception as e:
                 self.job_failed(logger, 'run()', exception=e, STDOUT=False)
                 logger.info('Sending comment text')
