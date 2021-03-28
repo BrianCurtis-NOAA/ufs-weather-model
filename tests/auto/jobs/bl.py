@@ -19,30 +19,30 @@ def set_directories(job_obj):
         workdir = '/scratch1/NCEPDEV/nems/Brian.Curtis/autort/pr'
         blstore = '/scratch1/NCEPDEV/nems/Brian.Curtis/RT/NEMSfv3gfs'
         rtbldir = '/scratch1/NCEPDEV/stmp4/Brian.Curtis/FV3_RT/'\
-                f'REGRESSION_TEST_{job_obj.compiler.upper()}'
+                 f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine == 'jet':
         workdir = '/lfs4/HFIP/h-nems/emc.nemspara/autort/pr'
         blstore = '/lfs4/HFIP/hfv3gfs/RT/NEMSfv3gfs/'
         rtbldir = '/lfs4/HFIP/hfv3gfs/emc.nemspara/RT_BASELINE/'\
-               f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler.upper()}'
+                 f'emc.nemspara/FV3_RT/REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/Brian.Curtis/autort/pr'
         blstore = '/lustre/f2/pdata/esrl/gsd/ufs/ufs-weather-model/RT'
         rtbldir = '/lustre/f2/scratch/Brian.Curtis/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
+                 f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine == 'orion':
         workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
         blstore = '/work/noaa/nems/emc.nemspara/RT/NEMSfv3gfs'
         rtbldir = '/work/noaa/stmp/bcurtis/stmp/bcurtis/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
+                 f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     elif job_obj.machine == 'cheyenne':
         workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
         blstore = '/glade/p/ral/jntp/GMTB/ufs-weather-model/RT'
         rtbldir = '/glade/work/heinzell/FV3_RT/'\
-               f'REGRESSION_TEST_{job_obj.compiler.upper()}'
+                 f'REGRESSION_TEST_{job_obj.compiler.upper()}'
     else:
-        raise KeyError(f'Machine {job_obj.machine} is not '\
-                        'supported for this job')
+        print(f'Machine {job_obj.machine} is not supported for this job')
+        raise KeyError
 
     logger.info(f'machine: {job_obj.machine}')
     logger.info(f'workdir: {workdir}')
@@ -57,11 +57,13 @@ def create_bl_dir(job_obj, bldate, blstore):
     bldir = f'{blstore}/develop-{bldate}/{job_obj.compiler.upper()}'
     logger.info(f'Build Dir: {bldir}')
     if os.path.exists(bldir):
-        raise FileExistsError(f'Baseline dir: {bldir} exists. It should not.')
+        print(f'Baseline dir: {bldir} exists. It should not.')
+        raise FileExistsError
     else:
         os.makedirs(bldir)
         if not os.path.exists(bldir):
-            raise Exception(f'Something went wrong creating {bldir}')
+            print(f'Someting went wrong creating {bldir}')
+            raise FileNotFoundError
 
     return bldir
 
@@ -74,7 +76,8 @@ def get_bl_date(job_obj):
             bldate = bldate.replace('BL_DATE:', '')
             bldate = bldate.replace(' ', '')
             if len(bldate) != 8:
-                raise ValueError(f'Date: {bldate} is not formatted YYYYMMDD')
+                print(f'Date: {bldate} is not formatted YYYYMMDD')
+                raise ValueError
             logger.info(f'bldate: {bldate}')
             bl_format = '%Y%m%d'
             try:
@@ -157,14 +160,15 @@ def update_rt_sh(job_obj, pr_repo_loc, bldate, branch):
     with open(f'{pr_repo_loc}/tests/rt.sh', 'r') as f:
         with open(f'{pr_repo_loc}/tests/rt.sh.new', 'w') as w:
             for line in f:
-                if 'BL_CURR_DIR=develop-' in line:
-                    w.write(f'BL_CURR_DIR=develop-{bldate}\n')
+                if 'BL_DATE' in line:
+                    w.write(f'BL_DATE={bldate}\n')
                 else:
                     w.write(line)
 
     move_rtsh_commands = [
         [f'git pull --ff-only origin {branch}', pr_repo_loc],
-        [f'mv {pr_repo_loc}/tests/rt.sh.new {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
+        [f'mv {pr_repo_loc}/tests/rt.sh.new {pr_repo_loc}/tests/rt.sh',
+         pr_repo_loc],
 
         [f'git add {pr_repo_loc}/tests/rt.sh', pr_repo_loc],
         [f'git commit -m "BL JOBS PASSED: {job_obj.machine}'
@@ -184,19 +188,22 @@ def process_logfile(job_obj, logfile):
         with open(logfile) as f:
             for line in f:
                 if 'FAIL' in line and 'Test' in line:
-                    job_obj.comment_text_append(f'{line}')
+                    job_obj.comment_text_append(f'{line.rstrip(chr(10))}')
                 elif 'working dir' in line and not rt_dir:
+                    logger.info(f'Found "working dir" in line: {line}')
                     rt_dir = os.path.split(line.split()[-1])[0]
+                    logger.info(f'It is: {rt_dir}')
                     job_obj.comment_text_append(f'Please manually delete: '
                                                 f'{rt_dir}')
                 elif 'SUCCESSFUL' in line:
+                    logger.info('RT Successful')
                     return rt_dir, True
-        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}',
-                           STDOUT=False)
+        logger.critical(f'Log file exists but is not complete')
+        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}')
     else:
         logger.critical(f'Could not find {job_obj.machine}'
                         f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]} log')
-        raise FileNotFoundError(f'Could not find {job_obj.machine}'
-                                f'.{job_obj.compiler} '
-                                f'{job_obj.preq_dict["action"]} log')
+        print(f'Could not find {job_obj.machine}.{job_obj.compiler} '
+              f'{job_obj.preq_dict["action"]} log')
+        raise FileNotFoundError

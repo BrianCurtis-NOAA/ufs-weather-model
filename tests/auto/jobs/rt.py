@@ -25,8 +25,8 @@ def set_directories(job_obj):
     elif job_obj.machine == 'cheyenne':
         workdir = '/glade/work/heinzell/fv3/ufs-weather-model/auto-rt'
     else:
-        raise KeyError(f'Machine {job_obj.machine} is not '\
-                        'supported for this job')
+        print(f'Machine {job_obj.machine} is not supported for this job')
+        raise KeyError
 
     logger.info(f'machine: {job_obj.machine}')
     logger.info(f'workdir: {workdir}')
@@ -114,19 +114,18 @@ def process_logfile(job_obj, logfile):
         with open(logfile) as f:
             for line in f:
                 if 'FAIL' in line and 'Test' in line:
-                    job_obj.comment_text_append(f'{line}')
+                    job_obj.comment_text_append(f'{line.rstrip(chr(10))}')
                 elif 'working dir' in line and not rt_dir:
                     rt_dir = os.path.split(line.split()[-1])[0]
                     job_obj.comment_text_append(f'Please manually delete: '
                                                 f'{rt_dir}')
                 elif 'SUCCESSFUL' in line:
                     return rt_dir, True
-        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}',
-                           STDOUT=False)
+        job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}')
     else:
         logger.critical(f'Could not find {job_obj.machine}'
                         f'.{job_obj.compiler} '
                         f'{job_obj.preq_dict["action"]} log')
-        raise FileNotFoundError(f'Could not find {job_obj.machine}'
-                                f'.{job_obj.compiler} '
-                                f'{job_obj.preq_dict["action"]} log')
+        print(f'Could not find {job_obj.machine}.{job_obj.compiler} '
+              f'{job_obj.preq_dict["action"]} log')
+        raise FileNotFoundError

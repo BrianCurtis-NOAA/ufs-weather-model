@@ -120,12 +120,8 @@ class Job:
     def __init__(self, preq_dict, ghinterface_obj, machine, compiler):
         self.logger = logging.getLogger('JOB')
         self.preq_dict = preq_dict
-        try:
-            self.job_mod = importlib.import_module(
-                           f'jobs.{self.preq_dict["action"].lower()}')
-        except Exception:
-            raise ModuleNotFoundError(f'Module: \
-                  {self.preq_dict["action"]} not found')
+        self.job_mod = importlib.import_module(
+                       f'jobs.{self.preq_dict["action"].lower()}')
         self.ghinterface_obj = ghinterface_obj
         self.machine = machine
         self.compiler = compiler
@@ -161,7 +157,7 @@ class Job:
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.STDOUT)
             except Exception as e:
-                self.job_failed(logger, 'subprocess.Popen', exception=e)
+                self.job_failed(logger, 'subprocess.Popen')
             else:
                 try:
                     out, err = output.communicate()
@@ -170,7 +166,7 @@ class Job:
                 except Exception as e:
                     err = [] if not err else err.decode('utf8').split('\n')
                     self.job_failed(logger, f'Command {command}', exception=e,
-                                    out=out, err=err)
+                                    STDOUT=True, out=out, err=err)
                 else:
                     logger.info(f'Finished running: {command}')
 
@@ -186,8 +182,8 @@ class Job:
                 self.remove_pr_label()
                 logger.info('Calling Job to Run')
                 self.job_mod.run(self)
-            except Exception as e:
-                self.job_failed(logger, 'run()', exception=e, STDOUT=False)
+            except Exception:
+                self.job_failed(logger, 'run()')
                 logger.info('Sending comment text')
                 self.send_comment_text()
         else:
