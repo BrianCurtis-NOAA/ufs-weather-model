@@ -126,25 +126,31 @@ def clone_pr_repo(job_obj, workdir):
     logger.debug(f'GIT URL: {git_url}')
     logger.info('Starting repo clone')
     repo_dir_str = f'{workdir}/'\
-                   f'{str(job_obj.preq_dict["preq"].id)}/'\
-                   f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
+                   f'{str(job_obj.preq_dict["preq"].id)}'
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
-    create_repo_commands = [
-        [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
-        [f'git clone -b {branch} {git_url}', repo_dir_str],
-        ['git submodule update --init --recursive',
-         f'{repo_dir_str}/{repo_name}'],
-        ['git config user.email "brian.curtis@noaa.gov"',
-         f'{repo_dir_str}/{repo_name}'],
-        ['git config user.name "Brian Curtis"',
-         f'{repo_dir_str}/{repo_name}']
-    ]
+
+    # If the directory already exists, we don't need to create it again
+    create_repo_commands = []
+    if not os.path.exists(repo_dir_str):
+        os.makedirs(repo_dir_str)
+        create_repo_commands.extend([
+            [f'git clone -b {branch} {git_url}', repo_dir_str],
+            ['git config user.email "brian.curtis@noaa.gov"', pr_repo_loc],
+            ['git config user.name "Brian Curtis"', pr_repo_loc]
+        ])
+    else:
+        create_repo_commands.extend([
+            [f'git pull origin {branch}', repo_dir_str]
+        ])
+    create_repo_commands.extend([
+        ['git submodule update --init --recursive', pr_repo_loc]
+    ])
 
     job_obj.run_commands(logger, create_repo_commands)
 
     logger.info('Finished repo clone')
-    return pr_repo_loc, repo_dir_str
+    return branch, pr_repo_loc, repo_dir_str
 
 
 def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir):
