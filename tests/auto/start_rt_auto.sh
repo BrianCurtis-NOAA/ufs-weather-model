@@ -17,11 +17,13 @@ elif [[ $HOSTNAME == *chadmin* ]]; then
   export MACHINE_ID=cheyenne
   export PATH=/glade/p/ral/jntp/tools/miniconda3/4.8.3/envs/ufs-weather-model/bin:/glade/p/ral/jntp/tools/miniconda3/4.8.3/bin:$PATH
   export PYTHONPATH=/glade/p/ral/jntp/tools/miniconda3/4.8.3/envs/ufs-weather-model/lib/python3.8/site-packages:/glade/p/ral/jntp/tools/miniconda3/4.8.3/lib/python3.8/site-packages
+elif [[ $HOSTNAME == neon ]]; then
+  echo "Neon"
 else
   echo "No Python Path for this machine."
   exit 1
 fi
 
-python rt_auto.py
+python setup_jobs.py
 
 exit 0

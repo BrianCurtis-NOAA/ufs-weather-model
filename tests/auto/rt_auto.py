@@ -156,7 +156,7 @@ class Job:
                 output = subprocess.Popen(command, shell=True, cwd=in_cwd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.STDOUT)
-            except Exception as e:
+            except Exception:
                 self.job_failed(logger, 'subprocess.Popen')
             else:
                 try:
@@ -208,6 +208,7 @@ class Job:
             logger.critical(f'STDOUT: {[item for item in out if not None]}')
             logger.critical(f'STDERR: {[eitem for eitem in err if not None]}')
 
+
 def setup_env():
     hostname = os.getenv('HOSTNAME')
     if bool(re.match(re.compile('hfe.+'), hostname)):
@@ -224,8 +225,8 @@ def setup_env():
         machine = 'cheyenne'
         os.environ['ACCNR'] = 'P48503002'
     else:
-        raise KeyError(f'Hostname: {hostname} does not match '\
-                        'for a supported system. Exiting.')
+        raise KeyError(f'Hostname: {hostname} does not match '
+                       'for a supported system. Exiting.')
 
     # Dictionary of GitHub repositories to check
     repo_dict = [{
