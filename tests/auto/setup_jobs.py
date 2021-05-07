@@ -69,9 +69,6 @@ def setup_env():
         machine = 'cheyenne'
         compilers = ['gnu', 'intel']
         os.environ['ACCNR'] = 'P48503002'
-    elif bool(re.match(re.compile('neon'), hostname)):
-        machine = 'neon'
-        compilers = ['gnu']
     else:
         raise KeyError(f'Hostname: {hostname} does not match '
                        'for a supported system. Exiting.')
