@@ -94,8 +94,7 @@ def post_process(job_obj, pull_request, rtbldir, bldir):
     compiler = job_obj.get_value('Compiler')
     rt_log = f'tests/RegressionTests_{machine}.{compiler}.log'
     logging.debug(f'rt_log: {rt_log}')
-    log_filepath = f'{pr_repo_loc}/{rt_log}'
-    logfile_pass = process_logfile(job_obj, log_filepath)
+    logfile_pass = job_obj.process_logfile()
     if logfile_pass:
         create_bl_dir(bldir)
         move_bl_command = [[f'mv {rtbldir}/* {bldir}/', pr_repo_loc]]
@@ -135,43 +134,3 @@ def get_bl_date(job_obj, pull_request):
     logging.info('Finished getting BL date')
 
     return bldate
-
-
-def process_logfile(job_obj):
-    pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
-    logging.info('Processing Log File')
-    machine = job_obj.get_value('Machine')
-    compiler = job_obj.get_value('Compiler')
-    logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
-    rt_dirs = []
-    failed_jobs = []
-    fail_string_list = ['Test', 'failed']
-    if os.path.exists(f'{pr_repo_loc}/{logfile}'):
-        with open(f'{pr_repo_loc}/{logfile}') as f:
-            for line in f:
-                if all(x in line for x in fail_string_list):
-                    failed_jobs.extend(f'{line.rstrip(chr(10))}')
-                elif 'working dir' in line and not rt_dirs:
-                    rt_dirs = job_obj.get_value('RT Dirs')
-                    rt_dirs.extend(os.path.split(line.split()[-1])[0])
-                    job_obj.update_key('RT Dirs', rt_dirs)
-                elif 'SUCCESSFUL' in line:
-                    logging.info('Finished Processing Log File')
-                    return True
-        logging.error('Could not find "SUCCESSFUL" in log file, '
-                      'assuming a failure')
-        notes = job_obj.get_value('Notes')
-        notes += 'Could not find "SUCCESSFUL" in log file, '\
-                 'assuming a failure\n'
-        job_obj.update_key('Notes', notes)
-        job_obj.update_key('Failed Tests', failed_jobs)
-        job_obj.failed()
-        raise ValueError('Could not find "SUCCESSFUL" in log file')
-    else:
-        logging.error(f'Could not find {machine}.{compiler} log')
-        notes = job_obj.get_value('Notes')
-        notes += f'Could not find {machine}.{compiler} log\n'
-        job_obj.update_key('Notes', notes)
-        job_obj.failed()
-        raise FileNotFoundError(f'Could not find {machine}.{compiler} log')

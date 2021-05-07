@@ -40,7 +40,8 @@ class Job:
 
     def update_key(self, key, value):
         logging.info('Updating a key in Job dictionary')
-        logging.debug(f'Updating "{key}" from "{self.dict[key]}" with "{value}"')
+        logging.debug(f'Updating "{key}" from "{self.dict[key]}" '
+                      'with "{value}"')
         self.dict[key] = value
         self.write_dict()
         self.has_dict_been_updated = True
@@ -48,7 +49,8 @@ class Job:
 
     def get_value(self, key):
         logging.info('Getting value from Job dictionary')
-        logging.debug(f'Has dictionary been updated?: {self.has_dict_been_updated}')
+        logging.debug('Has dictionary been updated?: '
+                      f'{self.has_dict_been_updated}')
         if self.has_dict_been_updated:
             self.read_dict()
             self.has_dict_been_updated = False
@@ -187,18 +189,58 @@ class Job:
                 raise RuntimeError('Issue removing old files/directories')
         logging.info('Finished checking if PR is mergable and removing if not')
 
+    def process_logfile(self):
+        pull_request = self.get_pr_obj()
+        pr_repo_loc = f'{self.get_value("PR Dir")}/'\
+                      f'{pull_request.head.repo.name}'
+        logging.info('Processing Log File')
+        machine = self.get_value('Machine')
+        compiler = self.get_value('Compiler')
+        logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
+        rt_dirs = []
+        failed_jobs = []
+        fail_string_list = ['Test', 'failed']
+        if os.path.exists(f'{pr_repo_loc}/{logfile}'):
+            with open(f'{pr_repo_loc}/{logfile}') as f:
+                for line in f:
+                    if all(x in line for x in fail_string_list):
+                        failed_jobs.extend(f'{line.rstrip(chr(10))}')
+                    elif 'working dir' in line and not rt_dirs:
+                        rt_dirs = self.get_value('RT Dirs')
+                        rt_dirs.extend(os.path.split(line.split()[-1])[0])
+                        self.update_key('RT Dirs', rt_dirs)
+                    elif 'SUCCESSFUL' in line:
+                        logging.info('Finished Processing Log File')
+                        return True
+            logging.error('Could not find "SUCCESSFUL" in log file, '
+                          'assuming a failure')
+            notes = self.get_value('Notes')
+            notes += 'Could not find "SUCCESSFUL" in log file, '\
+                     'assuming a failure\n'
+            self.update_key('Notes', notes)
+            self.update_key('Failed Tests', failed_jobs)
+            self.failed()
+            raise ValueError('Could not find "SUCCESSFUL" in log file')
+        else:
+            logging.error(f'Could not find {machine}.{compiler} log')
+            notes = self.get_value('Notes')
+            notes += f'Could not find {machine}.{compiler} log\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise FileNotFoundError(f'Could not find {machine}.{compiler} log')
+
     def setup_env(self):
         logging.info('Setting up HPC accouunt information')
         machine = self.get_value('Machine')
         logging.debug(f':machine {machine}')
-    
+
         if machine == 'jet':
             os.environ['ACCNR'] = 'h-nems'
         elif machine == 'gaea':
             os.environ['ACCNR'] = 'nggps_emc'
         elif machine == 'cheyenne':
             os.environ['ACCNR'] = 'P48503002'
-    
+
         logging.info('Finished setting up HPC account information')
 
     def run(self):
@@ -245,7 +287,7 @@ class Job:
                 self.update_key('Status', 'New')
                 self.run()
             else:
-                logging.error('I cannot identify where to start' \
+                logging.error('I cannot identify where to start '
                               'Please change job card "Status" to "New"')
                 notes = self.get_value('Notes')
                 notes += 'Saw "Fixed" in job card, but can not identify '\
@@ -259,7 +301,7 @@ class Job:
             notes += 'Job Card Status is not "New" or "Fixed", please set\n'
             self.update_key('Notes', notes)
             self.failed()
-            raise RunetimeError('Status is not "New" or "Fixed", please set')
+            raise RuntimeError('Status is not "New" or "Fixed", please set')
         logging.info('Finished Processing Job Card')
 
 
