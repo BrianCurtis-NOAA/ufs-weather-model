@@ -241,7 +241,10 @@ class Job:
                         failed_jobs.extend(f'{line.rstrip(chr(10))}')
                     elif 'working dir' in line and not rt_dirs:
                         rt_dirs = self.get_value('RT Dirs')
-                        rt_dirs.extend(os.path.split(line.split()[-1])[0])
+                        if rt_dirs is None:
+                            rt_dirs = [os.path.split(line.split()[-1])[0]]
+                        else:
+                            rt_dirs.extend(os.path.split(line.split()[-1])[0])
                         self.update_key('RT Dirs', rt_dirs)
                     elif 'SUCCESSFUL' in line:
                         logging.info('Finished Processing Log File')
@@ -331,12 +334,7 @@ class Job:
                 self.failed()
                 raise RuntimeError('Unable to identify where to start')
         else:
-            logging.error('Status is not "New" or "Fixed", please set')
-            notes = self.get_value('Notes')
-            notes += 'Job Card Status is not "New" or "Fixed", please set\n'
-            self.update_key('Notes', notes)
-            self.failed()
-            raise RuntimeError('Status is not "New" or "Fixed", please set')
+            logging.info('Status is not "New" or "Fixed", will not act upon.')
         logging.info('Finished Processing Job Card')
 
 
