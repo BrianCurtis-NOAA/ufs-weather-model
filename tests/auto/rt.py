@@ -46,7 +46,7 @@ def post_process(job_obj, pull_request):
     compiler = job_obj.get_value('Compiler')
     rt_log = f'tests/RegressionTests_{machine}.{compiler}.log'
     log_filepath = f'{pr_repo_loc}/{rt_log}'
-    logfile_pass = process_logfile(job_obj)
+    logfile_pass = process_logfile(job_obj, pull_request)
     if logfile_pass:
         if pull_request.maintainer_can_modify:
             move_rt_commands = [
@@ -76,16 +76,18 @@ def post_process(job_obj, pull_request):
             raise RuntimeError('Blocked from uploading log file by PR Author')
 
 
-def process_logfile(job_obj):
+def process_logfile(job_obj, pull_request):
     logging.info('Processing Log File')
+    pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
+                  f'{pull_request.head.repo.name}'
     machine = job_obj.get_value('Machine')
     compiler = job_obj.get_value('Compiler')
     logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
     rt_dirs = []
     failed_jobs = []
     fail_string_list = ['Test', 'failed']
-    if os.path.exists(logfile):
-        with open(logfile) as f:
+    if os.path.exists(f'{pr_repo_loc}/{logfile}'):
+        with open(f'{pr_repo_loc}/{logfile}') as f:
             for line in f:
                 if all(x in line for x in fail_string_list):
                     failed_jobs.extend(f'{line.rstrip(chr(10))}')

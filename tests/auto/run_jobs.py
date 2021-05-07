@@ -69,11 +69,11 @@ class Job:
         logging.info('Sending information to GitHub PR')
         pull_request = self.get_pr_obj()
         comment_text = f'''
-                       Machine: {self.get_value("Machine")}
-                       Compiler: {self.get_value("Compiler")}
-                       Status: {self.get_value("Status")}
-                       PR Dir: {self.get_value("PR Dir")}
-                       '''
+        Machine: {self.get_value("Machine")}
+        Compiler: {self.get_value("Compiler")}
+        Status: {self.get_value("Status")}
+        PR Dir: {self.get_value("PR Dir")}
+        '''
         if self.get_value('Failed Tests') is not None:
             comment_text += f'Failed Tests: {self.get_value("Failed Tests")}\n'
         comment_text += f'Notes: {self.get_value("Notes")}\n'
@@ -187,8 +187,23 @@ class Job:
                 raise RuntimeError('Issue removing old files/directories')
         logging.info('Finished checking if PR is mergable and removing if not')
 
+    def setup_env(self):
+        logging.info('Setting up HPC accouunt information')
+        machine = self.get_value('Machine')
+        logging.debug(f':machine {machine}')
+    
+        if machine == 'jet':
+            os.environ['ACCNR'] = 'h-nems'
+        elif machine == 'gaea':
+            os.environ['ACCNR'] = 'nggps_emc'
+        elif machine == 'cheyenne':
+            os.environ['ACCNR'] = 'P48503002'
+    
+        logging.info('Finished setting up HPC account information')
+
     def run(self):
         logging.info('Processing Job Card')
+        self.setup_env()
         self.check_and_remove_old_job()
         if self.get_value('Status') == 'New':
             logging.debug('Status is "New"')

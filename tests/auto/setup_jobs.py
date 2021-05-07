@@ -57,18 +57,15 @@ def setup_env():
     elif bool(re.match(re.compile('fe.+'), hostname)):
         machine = 'jet'
         compilers = ['intel']
-        os.environ['ACCNR'] = 'h-nems'
     elif bool(re.match(re.compile('gaea.+'), hostname)):
         machine = 'gaea'
         compilers = ['intel']
-        os.environ['ACCNR'] = 'nggps_emc'
     elif bool(re.match(re.compile('Orion-login.+'), hostname)):
         machine = 'orion'
         compilers = ['intel']
     elif bool(re.match(re.compile('chadmin.+'), hostname)):
         machine = 'cheyenne'
         compilers = ['gnu', 'intel']
-        os.environ['ACCNR'] = 'P48503002'
     else:
         raise KeyError(f'Hostname: {hostname} does not match '
                        'for a supported system. Exiting.')
