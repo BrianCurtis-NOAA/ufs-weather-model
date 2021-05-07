@@ -189,6 +189,40 @@ class Job:
                 raise RuntimeError('Issue removing old files/directories')
         logging.info('Finished checking if PR is mergable and removing if not')
 
+    def failed_tests_to_conf(self):
+        pull_request = self.get_pr_obj()
+        pr_repo_loc = f'{self.get_value("PR Dir")}/'\
+                      f'{pull_request.head.repo.name}'
+        logging.info('Creating rt_auto.conf file for failed tests')
+        rt_conf_file = 'tests/rt.conf'
+        fail_string_list = self.get_value('Failed Tests')
+        rt_auto_conf_file = open('rt_auto.conf', 'a')
+        has_compile_line_changed = False
+        if os.path.exists(f'{pr_repo_loc}/{rt_conf_file}'):
+            with open(f'{pr_repo_loc}/{rt_conf_file}') as f:
+                for line in f:
+                    if 'COMPILE' in line:
+                        current_compile_line = line
+                        has_compile_line_changed = True
+                    if 'RUN' in line:
+                        test = line.split('|')[1].strip()
+                        if any(test in x for x in fail_string_list):
+                            if has_compile_line_changed:
+                                rt_auto_conf_file.write(
+                                    f'{current_compile_line}\n')
+                                has_compile_line_changed = False
+                            rt_auto_conf_file.write(f'{line}\n')
+            rt_auto_conf_file.close()
+            self.update_key('Conf File', 'rt_auto.conf')
+        else:
+            logging.error('Could not read rt.conf')
+            notes = self.get_value('Notes')
+            notes += 'Could not read rt.conf\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise FileNotFoundError('Could not read rt.conf')
+        logging.info('Finished creating rt_auto.conf file for failed tests')
+
     def process_logfile(self):
         pull_request = self.get_pr_obj()
         pr_repo_loc = f'{self.get_value("PR Dir")}/'\
@@ -219,6 +253,7 @@ class Job:
                      'assuming a failure\n'
             self.update_key('Notes', notes)
             self.update_key('Failed Tests', failed_jobs)
+            self.failed_tests_to_conf()
             self.failed()
             raise ValueError('Could not find "SUCCESSFUL" in log file')
         else:

@@ -75,15 +75,25 @@ def run_regression_test(job_obj, pull_request):
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
                   f'{pull_request.head.repo.name}'
     logging.debug(f'pr_repo_loc: {pr_repo_loc}')
-    if compiler == 'gnu':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                       '&& /bin/bash --login ./rt.sh -e -c -l rt_gnu.conf',
-                       pr_repo_loc]]
-    elif compiler == 'intel':
-        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
-                       '&& /bin/bash --login ./rt.sh -e -c', pr_repo_loc]]
+    send_command = f'export RT_COMPILER="{compiler}" && cd tests '\
+                   '&& /bin/bash --login ./rt.sh -e -c'
+    conf_file = job_obj.get_value('Conf File')
+    if conf_file is not None:
+        send_command += f' -l {conf_file}'
+    elif compiler == 'gnu':
+        send_command += ' -l rt_gnu.conf'
+    logging.debug(f'send_command: {send_command}')
+    rt_command = [[send_command, pr_repo_loc]]
     logging.debug(f'rt_command: {rt_command}')
-    job_obj.run_commands(rt_command)
+    try:
+        job_obj.run_commands(rt_command)
+    except RuntimeError as e:
+        logging.error('"rt.sh -e -c" has failed')
+        notes = job_obj.get_value('Notes')
+        notes += '"rt.sh -e -c" has failed\n'
+        job_obj.update_key('Notes', notes)
+        job_obj.failed()
+        raise RuntimeError(e)
 
 
 def post_process(job_obj, pull_request, rtbldir, bldir):

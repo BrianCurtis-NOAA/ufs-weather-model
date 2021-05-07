@@ -115,7 +115,7 @@ def get_default_job_dict():
     job_dict['PR Dir'] = None
     job_dict['RT Dirs'] = None  # Need to know what to delete afterwards
     job_dict['New Baselines'] = False
-    job_dict['Log File'] = None
+    job_dict['Conf File'] = None
     job_dict['Notes'] = ''
     job_dict['Failed Tests'] = None
 
