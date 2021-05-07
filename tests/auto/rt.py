@@ -15,14 +15,17 @@ def run(job_obj):
 
 
 def run_regression_test(job_obj, pull_request):
+    logging.info("Starting to run regression tests from rt.sh")
+    compiler = job_obj.get_value('Compiler')
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
                   f'{pull_request.head.repo.name}'
-    if job_obj.compiler == 'gnu':
-        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
+    logging.debug(f'pr_repo_loc: {pr_repo_loc}')
+    if compiler == 'gnu':
+        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
                        '&& /bin/bash --login ./rt.sh -e -l rt_gnu.conf',
                        pr_repo_loc]]
-    elif job_obj.compiler == 'intel':
-        rt_command = [[f'export RT_COMPILER="{job_obj.compiler}" && cd tests '
+    elif compiler == 'intel':
+        rt_command = [[f'export RT_COMPILER="{compiler}" && cd tests '
                        '&& /bin/bash --login ./rt.sh -e', pr_repo_loc]]
     try:
         job_obj.run_commands(rt_command)
@@ -74,6 +77,7 @@ def post_process(job_obj, pull_request):
 
 
 def process_logfile(job_obj):
+    logging.info('Processing Log File')
     machine = job_obj.get_value('Machine')
     compiler = job_obj.get_value('Compiler')
     logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
@@ -90,12 +94,15 @@ def process_logfile(job_obj):
                     rt_dirs.extend(os.path.split(line.split()[-1])[0])
                     job_obj.update_key('RT Dirs', rt_dirs)
                 elif 'SUCCESSFUL' in line:
+                    logging.info('Finished Processing Log File')
                     return True
         logging.error('Could not find "SUCCESSFUL" in log file, '
                       'assuming a failure')
         notes = job_obj.get_value('Notes')
-        notes += 'Could not find "SUCCESSFUL" in log file, assuming a failure\n'
+        notes += 'Could not find "SUCCESSFUL" in log file, '\
+                 'assuming a failure\n'
         job_obj.update_key('Notes', notes)
+        job_obj.update_key('Failed Tests', failed_jobs)
         job_obj.failed()
         raise ValueError('Could not find "SUCCESSFUL" in log file')
     else:

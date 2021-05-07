@@ -83,7 +83,7 @@ def create_job_yaml(machine, compilers, ghinterface_obj, repo, pull_request):
     # SEARCH FOR CURRENT JOB BASED ON PULL REQUEST ID AND COMPILER
     # CREATE YAML FILE PER COMPILER BASED ON LABELS IN PULL REQUEST
     for compiler in compilers:
-        if os.path.exists(f'./{pull_request.number}-{compiler}'):
+        if os.path.exists(f'./{pull_request.number}-{compiler}.yaml'):
             continue
         job_dict = get_default_job_dict()
         job_dict['Machine'] = machine

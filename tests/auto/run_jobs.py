@@ -6,17 +6,12 @@ at NOAA-EMC
 This script should be started through rt_auto.sh so that env vars are set up
 prior to start.
 """
-from github import Github as gh
-import datetime
 import subprocess
-import re
 import os
 import logging
-import importlib
-import sys
 import yaml
 from setup_jobs import GHInterface
-from jobs import bl, rt
+from . import bl, rt
 
 
 class Job:
@@ -63,11 +58,10 @@ class Job:
 
     def failed(self):
         logging.error('Job has failed')
-        logging.info('Failing properly')
+        logging.info('Processing a failure')
         self.update_key('Status', 'Failed')
         self.send_comment_text()
-        self.write_dict()
-        logging.info('Finished a proper fail')
+        logging.info('Finished a processing failure')
 
     def send_comment_text(self):
         # MOVE THIS TO TAKE job_dict INFORMATION AND SEND COMMENT IF NEEDED
@@ -127,7 +121,7 @@ class Job:
             ])
         create_repo_commands.extend([
             ['git submodule update --init --recursive', pr_repo_loc]
-        ])
+        ])        self.write_dict()
         try:
             self.run_commands(create_repo_commands)
         except Exception:
@@ -160,6 +154,35 @@ class Job:
                 else:
                     logging.info(f'`{command}` Completed')
         logging.info('Finished Rinning Commands')
+
+    def check_and_remove_old_job(self):
+        logging.info("Checking if PR is mergable and removing if not")
+        removal_commands = []
+        pull_request = self.get_pr_obj()
+        logging.debug(f'pull_request.mergeable: {pull_request.mergeable}')
+        if not pull_request.mergeable:
+            pr_num = self.get_value('PR Number')
+            rt_dirs = self.get_value('RT Dirs')
+            removal_commands.extend([
+                [f'rm -rf {os.getcwd()}/pr/{pr_num}', os.getcwd()]
+            ])
+            for rt_dir in rt_dirs:
+                removal_commands.extend([
+                    [f'rm -rf {rt_dir}', os.getcwd()]
+                ])
+            logging.debug(f'removal_commands: {removal_commands}')
+            try:
+                self.run_commands(removal_commands)
+            except RuntimeError:
+                logging.critical('Issues removing old files/directories')
+                notes = self.get_value('Notes')
+                notes += 'Issues removing old files/directories from '\
+                         f'closed/merged PR {os.getcwd()}/pr/{pr_num}. '\
+                         'Please remove manually\n'
+                self.update_key('Notes', notes)
+                self.failed()
+                raise RuntimeError('Issue removing old files/directories')
+        logging.ingo('Finished checking if PR is mergable and removing if not')
 
     def run(self):
         logging.info('Processing Job Card')
@@ -215,9 +238,16 @@ def get_job_files():
 
 
 def main():
+    logging.basicConfig(format='%(asctime)s, %(levelname)-8s '
+                               '[%(filename)s:%(lineno)d] %(message)s',
+                        datefmt='%m-%d %H:%M:%S',
+                        filename='autort.log',
+                        level=logging.DEBUG)
     logging.info('Starting Main')
     job_files = get_job_files()
     job_obj_list = [Job(job_file) for job_file in job_files]
+    for job_obj in job_obj_list:
+        job_obj.run()
     logging.info('Finishing Main')
 
 
