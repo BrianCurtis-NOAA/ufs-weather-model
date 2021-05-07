@@ -119,7 +119,7 @@ def get_default_job_dict():
     job_dict['RT Dirs'] = None  # Need to know what to delete afterwards
     job_dict['New Baselines'] = False
     job_dict['Log File'] = None
-    job_dict['Notes'] = None
+    job_dict['Notes'] = ''
     job_dict['Failed Tests'] = None
 
     return job_dict
@@ -144,7 +144,7 @@ def main():
     # get all pull requests from the GitHub object
     # and turn them into Job objects
     logging.info('Getting all pull requests')
-    repo = ghinterface_obj.client.get_repo('ufs-community/ufs-weather-model',
+    repo = ghinterface_obj.client.get_repo('BrianCurtis-NOAA/ufs-weather-model',
                                            'develop')
     pull_requests = repo.get_pulls()
     actionable_pull_requests = get_actionable_pull_requests(pull_requests)

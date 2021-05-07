@@ -11,7 +11,8 @@ import os
 import logging
 import yaml
 from setup_jobs import GHInterface
-from . import bl, rt
+import bl
+import rt
 
 
 class Job:
@@ -39,7 +40,7 @@ class Job:
 
     def update_key(self, key, value):
         logging.info('Updating a key in Job dictionary')
-        logging.debug(f'Updating {key} from {self.dict[key]} with {value}')
+        logging.debug(f'Updating "{key}" from "{self.dict[key]}" with "{value}"')
         self.dict[key] = value
         self.write_dict()
         self.has_dict_been_updated = True
@@ -52,7 +53,7 @@ class Job:
             self.read_dict()
             self.has_dict_been_updated = False
         value = self.dict[key]
-        logging.debug(f'Received value {value}')
+        logging.debug(f'Received value "{value}" from key "{key}"')
         logging.info('Finished getting value from Job dictionary')
         return value
 
@@ -82,7 +83,7 @@ class Job:
 
     def get_pr_obj(self):
         logging.info('Getting Pull Request Object from pyGitHub')
-        ghinterface_obj = GHInterface
+        ghinterface_obj = GHInterface()
         pull_request = ghinterface_obj.client.get_repo(self.get_value(
                        'Repo ID')).get_pull(self.get_value('PR Number'))
         logging.debug(f'Type of pull_request is: {type(pull_request)}')
@@ -94,6 +95,7 @@ class Job:
         self.update_key('Job', 'Cloning PR Repo')
         self.update_key('Status', 'Running')
         pull_request = self.get_pr_obj()
+        logging.debug(f'pull_request: {pull_request}')
         repo_name = pull_request.head.repo.name
         logging.debug(f'repo_name: {repo_name}')
         branch = pull_request.head.ref
@@ -121,7 +123,8 @@ class Job:
             ])
         create_repo_commands.extend([
             ['git submodule update --init --recursive', pr_repo_loc]
-        ])        self.write_dict()
+        ])
+        logging.debug(f'create_repo_commands: {create_repo_commands}')
         try:
             self.run_commands(create_repo_commands)
         except Exception:
@@ -182,10 +185,11 @@ class Job:
                 self.update_key('Notes', notes)
                 self.failed()
                 raise RuntimeError('Issue removing old files/directories')
-        logging.ingo('Finished checking if PR is mergable and removing if not')
+        logging.info('Finished checking if PR is mergable and removing if not')
 
     def run(self):
         logging.info('Processing Job Card')
+        self.check_and_remove_old_job()
         if self.get_value('Status') == 'New':
             logging.debug('Status is "New"')
             self.clone_pr_repo()
@@ -222,6 +226,25 @@ class Job:
                 bl.run(self)
             elif self.get_value('Job') == 'RT':
                 rt.run(self)
+            elif self.get_value('Job') == 'Cloning PR Repo':
+                self.update_key('Status', 'New')
+                self.run()
+            else:
+                logging.error('I cannot identify where to start' \
+                              'Please change job card "Status" to "New"')
+                notes = self.get_value('Notes')
+                notes += 'Saw "Fixed" in job card, but can not identify '\
+                         'where to start. Please change "Status" to "New"\n'
+                self.update_key('Notes', notes)
+                self.failed()
+                raise RuntimeError('Unable to identify where to start')
+        else:
+            logging.error('Status is not "New" or "Fixed", please set')
+            notes = self.get_value('Notes')
+            notes += 'Job Card Status is not "New" or "Fixed", please set\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise RunetimeError('Status is not "New" or "Fixed", please set')
         logging.info('Finished Processing Job Card')
 
 

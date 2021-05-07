@@ -46,7 +46,7 @@ def post_process(job_obj, pull_request):
     compiler = job_obj.get_value('Compiler')
     rt_log = f'tests/RegressionTests_{machine}.{compiler}.log'
     log_filepath = f'{pr_repo_loc}/{rt_log}'
-    logfile_pass = process_logfile(job_obj, log_filepath)
+    logfile_pass = process_logfile(job_obj)
     if logfile_pass:
         if pull_request.maintainer_can_modify:
             move_rt_commands = [
