@@ -7,14 +7,13 @@ import os
 def run(job_obj):
     job_obj.update_key('Job', 'BL')
     job_obj.update_key('Status', 'Running')
-    pull_request = job_obj.get_pr_obj()
-    bldate = get_bl_date(job_obj, pull_request)
+    bldate = get_bl_date(job_obj)
     rtbldir, blstore = set_directories(job_obj)
     bldir = f'{blstore}/develop-{bldate}/'\
             f'{job_obj.get_value("Compiler").upper()}'
     if not check_for_bl_dir(bldir):
-        run_regression_test(job_obj, pull_request)
-        post_process(job_obj, pull_request, rtbldir, bldir)
+        run_regression_test(job_obj)
+        post_process(job_obj, rtbldir, bldir)
         job_obj.update_key('Status', 'Completed')
 
 
@@ -70,10 +69,10 @@ def create_bl_dir(bldir):
             raise FileNotFoundError
 
 
-def run_regression_test(job_obj, pull_request):
+def run_regression_test(job_obj):
     compiler = job_obj.get_value('Compiler')
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
+                  f'{job_obj.pull_request.head.repo.name}'
     logging.debug(f'pr_repo_loc: {pr_repo_loc}')
     send_command = f'export RT_COMPILER="{compiler}" && cd tests '\
                    '&& /bin/bash --login ./rt.sh -e -c'
@@ -96,9 +95,9 @@ def run_regression_test(job_obj, pull_request):
         raise RuntimeError(e)
 
 
-def post_process(job_obj, pull_request, rtbldir, bldir):
+def post_process(job_obj, rtbldir, bldir):
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
+                  f'{job_obj.pull_request.head.repo.name}'
     logging.debug(f'pr_repo_loc: {pr_repo_loc}')
     machine = job_obj.get_value('Machine')
     compiler = job_obj.get_value('Compiler')
@@ -112,11 +111,11 @@ def post_process(job_obj, pull_request, rtbldir, bldir):
         job_obj.run_commands(move_bl_command)
 
 
-def get_bl_date(job_obj, pull_request):
+def get_bl_date(job_obj):
     logging.info('Starting to get BL date')
     BLDATEFOUND = False
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
+                  f'{job_obj.pull_request.head.repo.name}'
     logging.debug(f'pr_repo_loc: {pr_repo_loc}')
     with open(f'{pr_repo_loc}/tests/rt.sh', 'r') as f:
         for line in f:

@@ -6,18 +6,17 @@ def run(job_obj):
     job_obj.update_key('Job', 'RT')
     job_obj.update_key('Status', 'Running')
     logging.info('Starting "RT" Task')
-    pull_request = job_obj.get_pr_obj()
-    run_regression_test(job_obj, pull_request)
-    post_process(job_obj, pull_request)
+    run_regression_test(job_obj)
+    post_process(job_obj)
     job_obj.update_key('Status', 'Completed')
     logging.info('Finished "RT" Task')
 
 
-def run_regression_test(job_obj, pull_request):
+def run_regression_test(job_obj):
     logging.info("Starting to run regression tests from rt.sh")
     compiler = job_obj.get_value('Compiler')
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
+                  f'{job_obj.pull_request.head.repo.name}'
     logging.debug(f'pr_repo_loc: {pr_repo_loc}')
     send_command = f'export RT_COMPILER="{compiler}" && cd tests '\
                    '&& /bin/bash --login ./rt.sh -e'
@@ -40,16 +39,16 @@ def run_regression_test(job_obj, pull_request):
         raise RuntimeError(e)
 
 
-def post_process(job_obj, pull_request):
+def post_process(job_obj):
     pr_repo_loc = f'{job_obj.get_value("PR Dir")}/'\
-                  f'{pull_request.head.repo.name}'
-    branch = pull_request.head.ref
+                  f'{job_obj.pull_request.head.repo.name}'
+    branch = job_obj.pull_request.head.ref
     machine = job_obj.get_value('Machine')
     compiler = job_obj.get_value('Compiler')
     rt_log = f'tests/RegressionTests_{machine}.{compiler}.log'
     logfile_pass = job_obj.process_logfile()
     if logfile_pass:
-        if pull_request.maintainer_can_modify:
+        if job_obj.pull_request.maintainer_can_modify:
             move_rt_commands = [
                 [f'git pull --ff-only origin {branch}', pr_repo_loc],
                 [f'git add {rt_log}', pr_repo_loc],

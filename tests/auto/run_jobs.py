@@ -25,6 +25,7 @@ class Job:
 
         self.read_dict()
         logging.info("Finished Inlitializing Job Class")
+        self.get_pr_obj()
 
     def read_dict(self):
         logging.info('Reading Job File')
@@ -41,7 +42,7 @@ class Job:
     def update_key(self, key, value):
         logging.info('Updating a key in Job dictionary')
         logging.debug(f'Updating "{key}" from "{self.dict[key]}" '
-                      'with "{value}"')
+                      f'with "{value}"')
         self.dict[key] = value
         self.write_dict()
         self.has_dict_been_updated = True
@@ -69,40 +70,35 @@ class Job:
     def send_comment_text(self):
         # MOVE THIS TO TAKE job_dict INFORMATION AND SEND COMMENT IF NEEDED
         logging.info('Sending information to GitHub PR')
-        pull_request = self.get_pr_obj()
-        comment_text = f'''
-        Machine: {self.get_value("Machine")}
-        Compiler: {self.get_value("Compiler")}
-        Status: {self.get_value("Status")}
-        PR Dir: {self.get_value("PR Dir")}
-        '''
+        comment_text = f'Machine: {self.get_value("Machine")}\n'\
+                       f'Compiler: {self.get_value("Compiler")}\n'\
+                       f'Status: {self.get_value("Status")}\n'\
+                       f'PR Dir: {self.get_value("PR Dir")}\n'
         if self.get_value('Failed Tests') is not None:
             comment_text += f'Failed Tests: {self.get_value("Failed Tests")}\n'
         comment_text += f'Notes: {self.get_value("Notes")}\n'
         logging.debug(f'Sending comment text to Github: {comment_text}')
-        pull_request.create_issue_comment(comment_text)
+        self.pull_request.create_issue_comment(comment_text)
         logging.info('Finished sending information to GitHub PR')
 
     def get_pr_obj(self):
         logging.info('Getting Pull Request Object from pyGitHub')
         ghinterface_obj = GHInterface()
-        pull_request = ghinterface_obj.client.get_repo(self.get_value(
+        self.pull_request = ghinterface_obj.client.get_repo(self.get_value(
                        'Repo ID')).get_pull(self.get_value('PR Number'))
-        logging.debug(f'Type of pull_request is: {type(pull_request)}')
+        logging.debug(f'Type of pull_request is: {type(self.pull_request)}')
         logging.info('Finished getting pull request object from pyGitHub')
-        return pull_request
 
     def clone_pr_repo(self):
         logging.info('Cloning PR Repo')
         self.update_key('Job', 'Cloning PR Repo')
         self.update_key('Status', 'Running')
-        pull_request = self.get_pr_obj()
-        logging.debug(f'pull_request: {pull_request}')
-        repo_name = pull_request.head.repo.name
+        logging.debug(f'pull_request: {self.pull_request}')
+        repo_name = self.pull_request.head.repo.name
         logging.debug(f'repo_name: {repo_name}')
-        branch = pull_request.head.ref
+        branch = self.pull_request.head.ref
         logging.debug(f'branch: {branch}')
-        git_url = pull_request.head.repo.html_url.split('//')
+        git_url = self.pull_request.head.repo.html_url.split('//')
         git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
         logging.debug(f'git_url: {git_url}')
         pr_repo_loc = f'{self.get_value("PR Dir")}/{repo_name}'
@@ -163,9 +159,8 @@ class Job:
     def check_and_remove_old_job(self):
         logging.info("Checking if PR is mergable and removing if not")
         removal_commands = []
-        pull_request = self.get_pr_obj()
-        logging.debug(f'pull_request.mergeable: {pull_request.mergeable}')
-        if not pull_request.mergeable:
+        logging.debug(f'pull_request.mergeable: {self.pull_request.mergeable}')
+        if not self.pull_request.mergeable:
             pr_num = self.get_value('PR Number')
             rt_dirs = self.get_value('RT Dirs')
             removal_commands.extend([
@@ -190,9 +185,8 @@ class Job:
         logging.info('Finished checking if PR is mergable and removing if not')
 
     def failed_tests_to_conf(self):
-        pull_request = self.get_pr_obj()
         pr_repo_loc = f'{self.get_value("PR Dir")}/'\
-                      f'{pull_request.head.repo.name}'
+                      f'{self.pull_request.head.repo.name}'
         logging.info('Creating rt_auto.conf file for failed tests')
         rt_conf_file = 'tests/rt.conf'
         fail_string_list = self.get_value('Failed Tests')
@@ -224,9 +218,8 @@ class Job:
         logging.info('Finished creating rt_auto.conf file for failed tests')
 
     def process_logfile(self):
-        pull_request = self.get_pr_obj()
         pr_repo_loc = f'{self.get_value("PR Dir")}/'\
-                      f'{pull_request.head.repo.name}'
+                      f'{self.pull_request.head.repo.name}'
         logging.info('Processing Log File')
         machine = self.get_value('Machine')
         compiler = self.get_value('Compiler')
@@ -234,6 +227,7 @@ class Job:
         rt_dirs = []
         failed_jobs = []
         fail_string_list = ['Test', 'failed']
+        logging.debug(f'Checking Path {pr_repo_loc}/{logfile}')
         if os.path.exists(f'{pr_repo_loc}/{logfile}'):
             with open(f'{pr_repo_loc}/{logfile}') as f:
                 for line in f:
