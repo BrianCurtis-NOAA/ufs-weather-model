@@ -241,6 +241,9 @@ class Job:
                             rt_dirs.extend(os.path.split(line.split()[-1])[0])
                         self.update_key('RT Dirs', rt_dirs)
                     elif 'SUCCESSFUL' in line:
+                        notes = self.get_value('Notes')
+                        notes += 'RT Log Shows Success\n'
+                        self.update_key('Notes', notes)
                         logging.info('Finished Processing Log File')
                         return True
             logging.error('Could not find "SUCCESSFUL" in log file, '

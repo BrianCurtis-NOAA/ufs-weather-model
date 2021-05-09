@@ -143,6 +143,7 @@ def main():
     logging.info('Getting all pull requests')
     repo = ghinterface_obj.client.get_repo('BrianCurtis-NOAA/ufs-weather-model',
                                            'develop')
+    logging.getLogger('github').setLevel(logging.WARNING)
     pull_requests = repo.get_pulls()
     actionable_pull_requests = get_actionable_pull_requests(pull_requests)
     for apr in actionable_pull_requests:
