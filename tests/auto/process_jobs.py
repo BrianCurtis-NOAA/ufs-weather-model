@@ -5,12 +5,14 @@ import os
 class Rt_compile:
 
     def __init__(self, number, app, debug=False, bit32=False, fv3=None,
-                 suites=None):
+                 repro=False, multigases=False, suites=None):
         self.number = number
         self.app = app
         self.debug = debug
         self.bit32 = bit32
         self.suites = suites
+        self.repro = repro
+        self.multigases = multigases
         self.fv3 = fv3
         self.status = None
         self.task_list = []
@@ -24,6 +26,8 @@ class Rt_compile:
         myret += f'Debug: {self.debug}\n'
         myret += f'32BIT: {self.bit32}\n'
         myret += f'Suites: {self.suites}\n'
+        myret += f'Repro: {self.repro}\n'
+        myret += f'Multigases: {self.multigases}\n'
         myret += f'FV3: {self.fv3}\n'
         myret += f'Status: {self.status}\n'
         myret += 'Tasks:\n'
@@ -114,6 +118,10 @@ def process_rt_conf(machine):
                         debug = True
                     elif info_split[0] == 'SUITES':
                         suites = info_split[1].split(',')
+                    elif info_split[0] == 'REPRO':
+                        repro = True
+                    elif info_split[0] == 'MULTI_GASES':
+                        multigases = True
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
                    and f'{machine}.intel' in machine_info):
@@ -123,11 +131,13 @@ def process_rt_conf(machine):
                     continue
                 fv3 = splitline[3].strip()
                 compile_list.append(Rt_compile(compile_num, app, debug, bit32,
-                                    fv3, suites))
+                                    fv3, repro, multigases, suites))
                 compile_num = compile_num + 1
             elif splitline[0].strip() == 'RUN':
                 compile = compile_list[-1]
                 name = splitline[1].strip()
+                if compile.repro:
+                    name += '_repro'
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
                    and f'{machine}.intel' in machine_info):
@@ -177,7 +187,7 @@ def update_status(compiles, machine):
 def main():
     machine, compilers = setup_env()
     compiles = process_rt_conf(machine)
-    failure = update_status(compiles)
+    failure = update_status(compiles, machine)
     print(f'Failure?: {failure}')
 
 
