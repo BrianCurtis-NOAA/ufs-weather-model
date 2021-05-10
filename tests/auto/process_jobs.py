@@ -105,22 +105,23 @@ def process_rt_conf(machine):
             splitline = line.split('|')
             if splitline[0].strip() == 'COMPILE':
                 infos = splitline[1].split(' ')
+                bit32 = False
+                debug = False
+                repro = False
+                multigases = False
                 for info in infos:
-                    bit32 = False
-                    debug = False
-                    suites = None
                     info_split = info.split('=')
-                    if info_split[0] == 'APP':
+                    if info_split[0].strip() == 'APP':
                         app = info_split[1]
-                    elif info_split[0] == '32BIT':
+                    elif info_split[0].strip() == '32BIT':
                         bit32 = True
-                    elif info_split[0] == 'DEBUG':
+                    elif info_split[0].strip() == 'DEBUG':
                         debug = True
-                    elif info_split[0] == 'SUITES':
+                    elif info_split[0].strip() == 'SUITES':
                         suites = info_split[1].split(',')
-                    elif info_split[0] == 'REPRO':
+                    elif info_split[0].strip() == 'REPRO':
                         repro = True
-                    elif info_split[0] == 'MULTI_GASES':
+                    elif info_split[0].strip() == 'MULTI_GASES':
                         multigases = True
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
@@ -130,8 +131,9 @@ def process_rt_conf(machine):
                       and f'{machine}.intel' not in machine_info):
                     continue
                 fv3 = splitline[3].strip()
-                compile_list.append(Rt_compile(compile_num, app, debug, bit32,
-                                    fv3, repro, multigases, suites))
+                compile_list.append(Rt_compile(compile_num, app, debug=debug,
+                                    bit32=bit32, fv3=fv3, repro=repro,
+                                    multigases=multigases, suites=suites))
                 compile_num = compile_num + 1
             elif splitline[0].strip() == 'RUN':
                 compile = compile_list[-1]
