@@ -144,11 +144,41 @@ def process_rt_conf(machine):
     return compile_list
 
 
+def update_status(compiles, machine):
+    failure = False
+    for compile in compiles:
+        with open(f'../log_{machine}.intel/compile_'
+                  f'{compile.number:03d}.log') as f:
+            for line in f:
+                if 'compile is COMPLETED' in line:
+                    compile.status = 'Completed'
+                    break
+        if compile.status != 'Completed':
+            print('Found a failed Compile')
+            failure = True
+            compile.status = 'Failed'
+            for task in compile.task_list:
+                task.status = 'Failed'
+        else:
+            for task in compile.task_list:
+                with open(f'../log_{machine}.intel/run_{task.number:03d}_'
+                          f'{task.name}.log') as f:
+                    for line in f:
+                        if 'PASS' in line:
+                            task.status = 'Completed'
+                            break
+                if task.status != 'Completed':
+                    print('Found a failed task')
+                    failure = True
+                    task.status = 'Failed'
+    return failure
+
+
 def main():
     machine, compilers = setup_env()
     compiles = process_rt_conf(machine)
-    for compile in compiles:
-        print(compile)
+    failure = update_status(compiles)
+    print(f'Failure?: {failure}')
 
 
 if __name__ == '__main__':
