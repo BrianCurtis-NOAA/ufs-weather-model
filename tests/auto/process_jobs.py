@@ -1,19 +1,34 @@
 import re
 import os
+import glob
 
 
 class Rt_compile:
 
-    def __init__(self, number, app, debug=False, bit32=False, fv3=None,
-                 repro=False, multigases=False, suites=None):
+    def __init__(self, number, conf_line):
         self.number = number
-        self.app = app
-        self.debug = debug
-        self.bit32 = bit32
-        self.suites = suites
-        self.repro = repro
-        self.multigases = multigases
-        self.fv3 = fv3
+        self.conf_line = conf_line
+        splitline = self.conf_line.split('|')
+        infos = splitline[1].split(' ')
+        self.bit32 = False
+        self.debug = False
+        self.repro = False
+        self.multigases = False
+        for info in infos:
+            info_split = info.split('=')
+            if info_split[0].strip() == 'APP':
+                self.app = info_split[1]
+            elif info_split[0].strip() == '32BIT':
+                self.bit32 = True
+            elif info_split[0].strip() == 'DEBUG':
+                self.debug = True
+            elif info_split[0].strip() == 'SUITES':
+                self.suites = info_split[1].split(',')
+            elif info_split[0].strip() == 'REPRO':
+                self.repro = True
+            elif info_split[0].strip() == 'MULTI_GASES':
+                self.multigases = True
+        self.fv3 = splitline[3].strip()
         self.status = None
         self.task_list = []
 
@@ -30,6 +45,7 @@ class Rt_compile:
         myret += f'Multigases: {self.multigases}\n'
         myret += f'FV3: {self.fv3}\n'
         myret += f'Status: {self.status}\n'
+        myret += f'Conf Line: {self.conf_line}\n'
         myret += 'Tasks:\n'
         for task in self.task_list:
             myret += f'--{task.number:03d}_{task.name}\n'
@@ -41,33 +57,36 @@ class Rt_compile:
 
 
 class Rt_task:
+    '''
+    This function takes a RUN line from rt.conf and creates a Rt_task object
+    '''
 
-    def __init__(self, number, compile, name, fv3=None, dependency=None):
-        self.number = number
+    def __init__(self, compile, conf_line):
         self.compile = compile
-        self.name = name
-        self.fv3 = fv3
-        self.dependency = dependency
+        self.conf_line = conf_line
+
+        splitline = self.conf_line.split('|')
+        self.name = splitline[1].strip()
+        if compile.repro:
+            self.name += '_repro'
+
+        self.fv3 = splitline[3].strip()
+        self.dependency = splitline[4]
         self.status = None
+        compile.add_task(self)
 
     def __repr__(self):
         return 'Rt_task()'
 
     def __str__(self):
-        myret = f'Number: {self.number}\n'
-        myret += f'Compile: {self.compile}\n'
+        myret = f'Compile: {self.compile}\n'
+        myret += f'Conf Line: {self.conf_line}'
         myret += f'Name: {self.name}\n'
         myret += f'Dependency: {self.dependency}\n'
         myret += f'FV3: {self.fv3}\n'
         myret += f'Status: {self.status}\n'
 
         return myret
-
-
-def check_for_completed():
-    "'compile is COMPLETED' for compiles"
-    "'PASS' for run"
-    pass
 
 
 def setup_env():
@@ -96,50 +115,27 @@ def setup_env():
     return machine, compilers
 
 
-def process_rt_conf(machine):
+def process_rt_conf(machine, compiler):
     compile_num = 1
-    task_num = 1
     compile_list = []
-    with open('../rt.conf') as f:
+    if compiler == 'intel':
+        rt_conf_filename = 'rt.conf'
+    else:
+        rt_conf_filename = f'rt_{compiler}.conf'
+    with open(f'../{rt_conf_filename}') as f:
         for line in f:
             splitline = line.split('|')
             if splitline[0].strip() == 'COMPILE':
-                infos = splitline[1].split(' ')
-                bit32 = False
-                debug = False
-                repro = False
-                multigases = False
-                for info in infos:
-                    info_split = info.split('=')
-                    if info_split[0].strip() == 'APP':
-                        app = info_split[1]
-                    elif info_split[0].strip() == '32BIT':
-                        bit32 = True
-                    elif info_split[0].strip() == 'DEBUG':
-                        debug = True
-                    elif info_split[0].strip() == 'SUITES':
-                        suites = info_split[1].split(',')
-                    elif info_split[0].strip() == 'REPRO':
-                        repro = True
-                    elif info_split[0].strip() == 'MULTI_GASES':
-                        multigases = True
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
-                   and f'{machine}.intel' in machine_info):
+                   and f'{machine}.{compiler}' in machine_info):
                     continue
                 elif ('+' in machine_info
-                      and f'{machine}.intel' not in machine_info):
+                      and f'{machine}.{compiler}' not in machine_info):
                     continue
-                fv3 = splitline[3].strip()
-                compile_list.append(Rt_compile(compile_num, app, debug=debug,
-                                    bit32=bit32, fv3=fv3, repro=repro,
-                                    multigases=multigases, suites=suites))
-                compile_num = compile_num + 1
+                compile_list.append(Rt_compile(compile_num, line))
+                compile_num += 1
             elif splitline[0].strip() == 'RUN':
-                compile = compile_list[-1]
-                name = splitline[1].strip()
-                if compile.repro:
-                    name += '_repro'
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
                    and f'{machine}.intel' in machine_info):
@@ -147,13 +143,40 @@ def process_rt_conf(machine):
                 elif ('+' in machine_info
                       and f'{machine}.intel' not in machine_info):
                     continue
-                fv3 = splitline[3].strip()
-                if len(splitline) >= 5:
-                    dependency = splitline[4]
-                compile_list[-1].add_task(Rt_task(task_num, compile, name, fv3,
-                                                  dependency))
-                task_num = task_num+1
+                Rt_task(compile_list[-1], line)
     return compile_list
+
+
+def find_task(compiles, task_name):
+    for compile in compiles:
+        match = next((task for task in compile.task_list
+                      if task.name == task_name), None)
+        if match is not None:
+            print(f'Found Match {match}')
+            return match
+
+    return None
+
+
+def write_new_conf(compiles):
+    new_conf_file = 'rt_test.conf'
+    with open(new_conf_file, 'w') as f:
+        for compile in compiles:
+            compile_used = False
+            if compile.status == 'Failed':
+                f.write(compile.conf_line)
+                for task in compile.task_list:
+                    f.write(task.conf_line)
+            elif compile.status == 'Completed':
+                for task in compile.task_list:
+                    if task.status == 'Failed':
+                        if not compile_used:
+                            f.write(compile.conf_line)
+                            compile_used = True
+                        if task.dependency:
+                            thistask = find_task(compiles, task.dependency)
+                            f.write(thistask.conf_line)
+                        f.write(task.conf_line)
 
 
 def update_status(compiles, machine):
@@ -165,30 +188,34 @@ def update_status(compiles, machine):
                 if 'compile is COMPLETED' in line:
                     compile.status = 'Completed'
                     break
-        if compile.status != 'Completed':
+            compile.status = 'Failed'
+        if compile.status == 'Failed':
             print('Found a failed Compile')
             failure = True
-            compile.status = 'Failed'
             for task in compile.task_list:
                 task.status = 'Failed'
         else:
             for task in compile.task_list:
-                with open(f'../log_{machine}.intel/run_{task.number:03d}_'
-                          f'{task.name}.log') as f:
+                with open(glob.glob(f'../log_{machine}.intel/run_*_'
+                          f'{task.name}.log')) as f:
                     for line in f:
                         if 'PASS' in line:
                             task.status = 'Completed'
                             break
-                if task.status != 'Completed':
+                    task.status = 'Failed'
+                if task.status == 'Failed':
                     print('Found a failed task')
                     failure = True
-                    task.status = 'Failed'
+    if failure:
+        write_new_conf(compiles)
+        print('===========\nHERE IS WHERE I WOULD CHANGE JOB CARD "CONF File"')
     return failure
 
 
 def main():
     machine, compilers = setup_env()
-    compiles = process_rt_conf(machine)
+    compiler = 'intel'
+    compiles = process_rt_conf(machine, compiler)
     failure = update_status(compiles, machine)
     print(f'Failure?: {failure}')
 
