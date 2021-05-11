@@ -48,7 +48,7 @@ class Rt_compile:
         myret += f'Conf Line: {self.conf_line}\n'
         myret += 'Tasks:\n'
         for task in self.task_list:
-            myret += f'--{task.number:03d}_{task.name}\n'
+            myret += f'--{task.name}\n'
 
         return myret
 
@@ -71,7 +71,7 @@ class Rt_task:
             self.name += '_repro'
 
         self.fv3 = splitline[3].strip()
-        self.dependency = splitline[4]
+        self.dependency = splitline[4].strip()
         self.status = None
         compile.add_task(self)
 
@@ -152,14 +152,13 @@ def find_task(compiles, task_name):
         match = next((task for task in compile.task_list
                       if task.name == task_name), None)
         if match is not None:
-            print(f'Found Match {match}')
             return match
 
     return None
 
 
 def write_new_conf(compiles):
-    new_conf_file = 'rt_test.conf'
+    new_conf_file = '../rt_auto.conf'
     with open(new_conf_file, 'w') as f:
         for compile in compiles:
             compile_used = False
@@ -182,13 +181,15 @@ def write_new_conf(compiles):
 def update_status(compiles, machine):
     failure = False
     for compile in compiles:
-        with open(f'../log_{machine}.intel/compile_'
-                  f'{compile.number:03d}.log') as f:
+        filename = f'../log_{machine}.intel/compile_'\
+                   f'{compile.number:03d}.log'
+        compile.status = 'Failed'
+        with open(filename) as f:
             for line in f:
                 if 'compile is COMPLETED' in line:
+                    print('FOUND COMPLETED COMPILE')
                     compile.status = 'Completed'
                     break
-            compile.status = 'Failed'
         if compile.status == 'Failed':
             print('Found a failed Compile')
             failure = True
@@ -196,13 +197,15 @@ def update_status(compiles, machine):
                 task.status = 'Failed'
         else:
             for task in compile.task_list:
-                with open(glob.glob(f'../log_{machine}.intel/run_*_'
-                          f'{task.name}.log')) as f:
+                task.status = 'Failed'
+                filename_t = glob.glob(f'../log_{machine}.intel/run_*_'
+                                       f'{task.name}.log')
+                print(f'FILENAME_T: {filename_t}')
+                with open(filename_t[0]) as f:
                     for line in f:
                         if 'PASS' in line:
                             task.status = 'Completed'
                             break
-                    task.status = 'Failed'
                 if task.status == 'Failed':
                     print('Found a failed task')
                     failure = True
