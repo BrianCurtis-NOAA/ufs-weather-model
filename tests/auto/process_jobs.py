@@ -187,11 +187,9 @@ def update_status(compiles, machine):
         with open(filename) as f:
             for line in f:
                 if 'compile is COMPLETED' in line:
-                    print('FOUND COMPLETED COMPILE')
                     compile.status = 'Completed'
                     break
         if compile.status == 'Failed':
-            print('Found a failed Compile')
             failure = True
             for task in compile.task_list:
                 task.status = 'Failed'
@@ -200,18 +198,14 @@ def update_status(compiles, machine):
                 task.status = 'Failed'
                 filename_t = glob.glob(f'../log_{machine}.intel/run_*_'
                                        f'{task.name}.log')
-                print(f'FILENAME_T: {filename_t}')
                 with open(filename_t[0]) as f:
                     for line in f:
                         if 'PASS' in line:
                             task.status = 'Completed'
                             break
                 if task.status == 'Failed':
-                    print('Found a failed task')
                     failure = True
-    if failure:
-        write_new_conf(compiles)
-        print('===========\nHERE IS WHERE I WOULD CHANGE JOB CARD "CONF File"')
+
     return failure
 
 
@@ -220,7 +214,9 @@ def main():
     compiler = 'intel'
     compiles = process_rt_conf(machine, compiler)
     failure = update_status(compiles, machine)
-    print(f'Failure?: {failure}')
+    if failure:
+        write_new_conf(compiles)
+        print('===========\nHERE IS WHERE I WOULD CHANGE JOB CARD "CONF File"')
 
 
 if __name__ == '__main__':
