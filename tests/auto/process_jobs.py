@@ -158,6 +158,7 @@ def find_task(compiles, task_name):
 
 
 def write_new_conf(compiles):
+    tests_added = []
     new_conf_file = '../rt_auto.conf'
     with open(new_conf_file, 'w') as f:
         for compile in compiles:
@@ -174,8 +175,12 @@ def write_new_conf(compiles):
                             compile_used = True
                         if task.dependency:
                             thistask = find_task(compiles, task.dependency)
-                            f.write(thistask.conf_line)
-                        f.write(task.conf_line)
+                            if thistask.name not in tests_added:
+                                tests_added.append(thistask.name)
+                                f.write(thistask.conf_line)
+                        if task.name not in tests_added:
+                            tests_added.append(task.name)
+                            f.write(task.conf_line)
 
 
 def update_status(compiles, machine):
