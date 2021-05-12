@@ -124,7 +124,7 @@ def process_rt_conf(machine, compiler):
         rt_conf_filename = f'rt_{compiler}.conf'
     with open(f'../{rt_conf_filename}') as f:
         for line in f:
-    tests/auto/        splitline = line.split('|')
+            splitline = line.split('|')
             if splitline[0].strip() == 'COMPILE':
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
