@@ -212,7 +212,7 @@ def update_status(compiles, machine):
                             if 'PASS' in line:
                                 task.status = 'Completed'
                                 break
-                except FileNotFoundError:
+                except (FileNotFoundError, IndexError):
                     task.status = 'Failed'
                 if task.status == 'Failed':
                     failure = True
