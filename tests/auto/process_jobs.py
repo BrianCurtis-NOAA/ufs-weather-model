@@ -124,7 +124,7 @@ def process_rt_conf(machine, compiler):
         rt_conf_filename = f'rt_{compiler}.conf'
     with open(f'../{rt_conf_filename}') as f:
         for line in f:
-            splitline = line.split('|')
+    tests/auto/        splitline = line.split('|')
             if splitline[0].strip() == 'COMPILE':
                 machine_info = splitline[2].split(' ')
                 if ('-' in machine_info
@@ -189,11 +189,14 @@ def update_status(compiles, machine):
         filename = f'../log_{machine}.intel/compile_'\
                    f'{compile.number:03d}.log'
         compile.status = 'Failed'
-        with open(filename) as f:
-            for line in f:
-                if 'compile is COMPLETED' in line:
-                    compile.status = 'Completed'
-                    break
+        try:
+            with open(filename) as f:
+                for line in f:
+                    if 'compile is COMPLETED' in line:
+                        compile.status = 'Completed'
+                        break
+        except FileNotFoundError:
+            compile.status = 'Failed'
         if compile.status == 'Failed':
             failure = True
             for task in compile.task_list:
@@ -203,11 +206,14 @@ def update_status(compiles, machine):
                 task.status = 'Failed'
                 filename_t = glob.glob(f'../log_{machine}.intel/run_*_'
                                        f'{task.name}.log')
-                with open(filename_t[0]) as f:
-                    for line in f:
-                        if 'PASS' in line:
-                            task.status = 'Completed'
-                            break
+                try:
+                    with open(filename_t[0]) as f:
+                        for line in f:
+                            if 'PASS' in line:
+                                task.status = 'Completed'
+                                break
+                except FileNotFoundError:
+                    task.status = 'Failed'
                 if task.status == 'Failed':
                     failure = True
 
