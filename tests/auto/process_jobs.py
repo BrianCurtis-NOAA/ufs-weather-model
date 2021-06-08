@@ -1,59 +1,69 @@
 import re
 import os
 import glob
+import yaml
 
 
 class Rt_compile:
 
     def __init__(self, number, conf_line):
+
+        compile_dict = {}
+        compile_dict['number'] = number
+        compile_dict['debug'] = False
+        compile_dict['bit32'] = False
+        compile_dict['repro'] = False
+        compile_dict['multigases'] = False
+        compile_dict['status'] = None
+        compile_dict['conf_line'] = conf_line
+        compile_dict['task_list'] = []
+
         self.number = number
         self.conf_line = conf_line
         splitline = self.conf_line.split('|')
         infos = splitline[1].split(' ')
-        self.bit32 = False
-        self.debug = False
-        self.repro = False
-        self.multigases = False
         for info in infos:
             info_split = info.split('=')
             if info_split[0].strip() == 'APP':
-                self.app = info_split[1]
+                compile_dict['app'] = info_split[1]
             elif info_split[0].strip() == '32BIT':
-                self.bit32 = True
+                compile_dict['bit32'] = True
             elif info_split[0].strip() == 'DEBUG':
-                self.debug = True
+                compile_dict['debug'] = True
             elif info_split[0].strip() == 'SUITES':
-                self.suites = info_split[1].split(',')
+                compile_dict['suites'] = info_split[1].split(',')
             elif info_split[0].strip() == 'REPRO':
-                self.repro = True
+                compile_dict['repro'] = True
             elif info_split[0].strip() == 'MULTI_GASES':
-                self.multigases = True
-        self.fv3 = splitline[3].strip()
-        self.status = None
-        self.task_list = []
+                compile_dict['multigases'] = True
+        compile_dict['fv3'] = splitline[3].strip()
 
     def __repr__(self):
         return 'Rt_compile()'
 
     def __str__(self):
-        myret = f'Compile: {self.number}\n'
-        myret += f'App: {self.app}\n'
-        myret += f'Debug: {self.debug}\n'
-        myret += f'32BIT: {self.bit32}\n'
-        myret += f'Suites: {self.suites}\n'
-        myret += f'Repro: {self.repro}\n'
-        myret += f'Multigases: {self.multigases}\n'
-        myret += f'FV3: {self.fv3}\n'
-        myret += f'Status: {self.status}\n'
-        myret += f'Conf Line: {self.conf_line}\n'
+        myret = f'Compile: {self.compile_dict["number"]}\n'
+        myret += f'App: {self.compile_dict["app"]}\n'
+        myret += f'Debug: {self.compile_dict["debug"]}\n'
+        myret += f'32BIT: {self.compile_dict["bit32"]}\n'
+        myret += f'Suites: {self.compile_dict["suites"]}\n'
+        myret += f'Repro: {self.compile_dict["repro"]}\n'
+        myret += f'Multigases: {self.compile_dict["multigases"]}\n'
+        myret += f'FV3: {self.compile_dict["fv3"]}\n'
+        myret += f'Status: {self.compile_dict["status"]}\n'
+        myret += f'Conf Line: {self.compile_dict["conf_line"]}\n'
         myret += 'Tasks:\n'
-        for task in self.task_list:
-            myret += f'--{task.name}\n'
+        for task in self.compile_dict["task_list"]:
+            myret += f'--{task["name"]}\n'
 
         return myret
 
     def add_task(self, rt_task):
         self.task_list.append(rt_task)
+
+    def save_to_file(self):
+        with open(f'./pr/{self.compile_dict["number"]/}', 'w') as file:
+            yaml.dump(self.compile_dict, file)
 
 
 class Rt_task:
