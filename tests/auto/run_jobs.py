@@ -10,7 +10,7 @@ import subprocess
 import os
 import logging
 import yaml
-from setup_jobs import GHInterface
+from prep_jobs import GHInterface
 import bl
 import rt
 
@@ -64,22 +64,23 @@ class Job:
         logging.error('Job has failed')
         logging.info('Processing a failure')
         self.update_key('Status', 'Failed')
-        self.send_comment_text()
-        logging.info('Finished a processing failure')
 
-    def send_comment_text(self):
-        # MOVE THIS TO TAKE job_dict INFORMATION AND SEND COMMENT IF NEEDED
-        logging.info('Sending information to GitHub PR')
-        comment_text = f'Machine: {self.get_value("Machine")}\n'\
-                       f'Compiler: {self.get_value("Compiler")}\n'\
-                       f'Status: {self.get_value("Status")}\n'\
-                       f'PR Dir: {self.get_value("PR Dir")}\n'
-        if self.get_value('Failed Tests') is not None:
-            comment_text += f'Failed Tests: {self.get_value("Failed Tests")}\n'
-        comment_text += f'Notes: {self.get_value("Notes")}\n'
-        logging.debug(f'Sending comment text to Github: {comment_text}')
-        self.pull_request.create_issue_comment(comment_text)
-        logging.info('Finished sending information to GitHub PR')
+        def send_comment_text():
+            # MOVE THIS TO TAKE job_dict INFORMATION AND SEND COMMENT IF NEEDED
+            logging.info('Sending information to GitHub PR')
+            comment_text = f'Machine: {self.get_value("Machine")}\n'\
+                           f'Compiler: {self.get_value("Compiler")}\n'\
+                           f'Status: {self.get_value("Status")}\n'\
+                           f'PR Dir: {self.get_value("PR Dir")}\n'
+            if self.get_value('Failed Tests') is not None:
+                comment_text += f'Failed Tests: {self.get_value("Failed Tests")}\n'
+            comment_text += f'Notes: {self.get_value("Notes")}\n'
+            logging.debug(f'Sending comment text to Github: {comment_text}')
+            self.pull_request.create_issue_comment(comment_text)
+            logging.info('Finished sending information to GitHub PR')
+
+        send_comment_text()
+        logging.info('Finished a processing failure')
 
     def get_pr_obj(self):
         logging.info('Getting Pull Request Object from pyGitHub')
@@ -88,47 +89,6 @@ class Job:
                        'Repo ID')).get_pull(self.get_value('PR Number'))
         logging.debug(f'Type of pull_request is: {type(self.pull_request)}')
         logging.info('Finished getting pull request object from pyGitHub')
-
-    def clone_pr_repo(self):
-        logging.info('Cloning PR Repo')
-        self.update_key('Job', 'Cloning PR Repo')
-        self.update_key('Status', 'Running')
-        logging.debug(f'pull_request: {self.pull_request}')
-        repo_name = self.pull_request.head.repo.name
-        logging.debug(f'repo_name: {repo_name}')
-        branch = self.pull_request.head.ref
-        logging.debug(f'branch: {branch}')
-        git_url = self.pull_request.head.repo.html_url.split('//')
-        git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
-        logging.debug(f'git_url: {git_url}')
-        pr_repo_loc = f'{self.get_value("PR Dir")}/{repo_name}'
-        logging.debug(f'pr_repo_loc: {pr_repo_loc}')
-
-        # If the directory already exists, we don't need to create it again
-        create_repo_commands = []
-        if not os.path.exists(self.get_value("PR Dir")):
-            logging.debug('I do not see the PR dir, creating it')
-            os.makedirs(self.get_value("PR Dir"))
-            create_repo_commands.extend([
-                [f'git clone -b {branch} {git_url}', self.get_value("PR Dir")],
-                ['git config user.email "brian.curtis@noaa.gov"', pr_repo_loc],
-                ['git config user.name "Brian Curtis"', pr_repo_loc]
-            ])
-        else:
-            logging.debug('I already see the PR Dir, not creating it again')
-            create_repo_commands.extend([
-                [f'git pull origin {branch}', pr_repo_loc]
-            ])
-        create_repo_commands.extend([
-            ['git submodule update --init --recursive', pr_repo_loc]
-        ])
-        logging.debug(f'create_repo_commands: {create_repo_commands}')
-        try:
-            self.run_commands(create_repo_commands)
-        except Exception:
-            self.failed()
-        self.update_key('Status', 'Completed')
-        logging.info('Finished Cloning PR Repo')
 
     def run_commands(self, commands_with_cwd):
         logging.info('Running Commands')
@@ -217,52 +177,52 @@ class Job:
             raise FileNotFoundError('Could not read rt.conf')
         logging.info('Finished creating rt_auto.conf file for failed tests')
 
-    def process_logfile(self):
-        pr_repo_loc = f'{self.get_value("PR Dir")}/'\
-                      f'{self.pull_request.head.repo.name}'
-        logging.info('Processing Log File')
-        machine = self.get_value('Machine')
-        compiler = self.get_value('Compiler')
-        logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
-        rt_dirs = []
-        failed_jobs = []
-        fail_string_list = ['Test', 'failed']
-        logging.debug(f'Checking Path {pr_repo_loc}/{logfile}')
-        if os.path.exists(f'{pr_repo_loc}/{logfile}'):
-            with open(f'{pr_repo_loc}/{logfile}') as f:
-                for line in f:
-                    if all(x in line for x in fail_string_list):
-                        failed_jobs.extend(f'{line.rstrip(chr(10))}')
-                    elif 'working dir' in line and not rt_dirs:
-                        rt_dirs = self.get_value('RT Dirs')
-                        if rt_dirs is None:
-                            rt_dirs = [os.path.split(line.split()[-1])[0]]
-                        else:
-                            rt_dirs.extend(os.path.split(line.split()[-1])[0])
-                        self.update_key('RT Dirs', rt_dirs)
-                    elif 'SUCCESSFUL' in line:
-                        notes = self.get_value('Notes')
-                        notes += 'RT Log Shows Success\n'
-                        self.update_key('Notes', notes)
-                        logging.info('Finished Processing Log File')
-                        return True
-            logging.error('Could not find "SUCCESSFUL" in log file, '
-                          'assuming a failure')
-            notes = self.get_value('Notes')
-            notes += 'Could not find "SUCCESSFUL" in log file, '\
-                     'assuming a failure\n'
-            self.update_key('Notes', notes)
-            self.update_key('Failed Tests', failed_jobs)
-            self.failed_tests_to_conf()
-            self.failed()
-            raise ValueError('Could not find "SUCCESSFUL" in log file')
-        else:
-            logging.error(f'Could not find {machine}.{compiler} log')
-            notes = self.get_value('Notes')
-            notes += f'Could not find {machine}.{compiler} log\n'
-            self.update_key('Notes', notes)
-            self.failed()
-            raise FileNotFoundError(f'Could not find {machine}.{compiler} log')
+    # def process_logfile(self):
+    #     pr_repo_loc = f'{self.get_value("PR Dir")}/'\
+    #                   f'{self.pull_request.head.repo.name}'
+    #     logging.info('Processing Log File')
+    #     machine = self.get_value('Machine')
+    #     compiler = self.get_value('Compiler')
+    #     logfile = f'tests/RegressionTests_{machine}.{compiler}.log'
+    #     rt_dirs = []
+    #     failed_jobs = []
+    #     fail_string_list = ['Test', 'failed']
+    #     logging.debug(f'Checking Path {pr_repo_loc}/{logfile}')
+    #     if os.path.exists(f'{pr_repo_loc}/{logfile}'):
+    #         with open(f'{pr_repo_loc}/{logfile}') as f:
+    #             for line in f:
+    #                 if all(x in line for x in fail_string_list):
+    #                     failed_jobs.extend(f'{line.rstrip(chr(10))}')
+    #                 elif 'working dir' in line and not rt_dirs:
+    #                     rt_dirs = self.get_value('RT Dirs')
+    #                     if rt_dirs is None:
+    #                         rt_dirs = [os.path.split(line.split()[-1])[0]]
+    #                     else:
+    #                         rt_dirs.extend(os.path.split(line.split()[-1])[0])
+    #                     self.update_key('RT Dirs', rt_dirs)
+    #                 elif 'SUCCESSFUL' in line:
+    #                     notes = self.get_value('Notes')
+    #                     notes += 'RT Log Shows Success\n'
+    #                     self.update_key('Notes', notes)
+    #                     logging.info('Finished Processing Log File')
+    #                     return True
+    #         logging.error('Could not find "SUCCESSFUL" in log file, '
+    #                       'assuming a failure')
+    #         notes = self.get_value('Notes')
+    #         notes += 'Could not find "SUCCESSFUL" in log file, '\
+    #                  'assuming a failure\n'
+    #         self.update_key('Notes', notes)
+    #         self.update_key('Failed Tests', failed_jobs)
+    #         self.failed_tests_to_conf()
+    #         self.failed()
+    #         raise ValueError('Could not find "SUCCESSFUL" in log file')
+    #     else:
+    #         logging.error(f'Could not find {machine}.{compiler} log')
+    #         notes = self.get_value('Notes')
+    #         notes += f'Could not find {machine}.{compiler} log\n'
+    #         self.update_key('Notes', notes)
+    #         self.failed()
+    #         raise FileNotFoundError(f'Could not find {machine}.{compiler} log')
 
     def setup_env(self):
         logging.info('Setting up HPC accouunt information')
