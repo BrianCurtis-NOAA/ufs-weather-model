@@ -311,7 +311,7 @@ class Job:
 
         elif self.get_value('Status') == 'Processed':
             if self.get_value('Job') == 'BL':
-                rt.run()
+                rt.run(self)
             elif self.get_value('Job') == 'RT':
                 self.update_key('Status', 'Completed')
                 logging.info('Regression Testing Processed, Job Completed')
