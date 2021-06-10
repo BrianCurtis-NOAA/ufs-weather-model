@@ -8,6 +8,7 @@ prior to start.
 """
 import os
 import logging
+import yaml
 
 
 # TODO: Write compile dictionaries to yaml
@@ -67,10 +68,6 @@ class Rt_compile:
     def add_task(self, task_dict):
         self.compile_dict['task_list'].append(task_dict)
 
-    def save_to_file(self):
-        with open(f'./pr/{self.compile_dict["number"]/}', 'w') as file:
-            yaml.dump(self.compile_dict, file)
-
 
 class Rt_task:
     '''
@@ -87,7 +84,7 @@ class Rt_task:
         splitline = task_dict['conf_line'].split('|')
         task_dict['name'] = splitline[1].strip()
         # self.name = splitline[1].strip()
-        if compile.repro:
+        if compile.compile_dict["repro"]:
             task_dict['name'] += '_repro'
             # self.name += '_repro'
         task_dict['fv3'] = splitline[3].strip()
@@ -97,7 +94,7 @@ class Rt_task:
         # self.dependency = splitline[4].strip()
         # self.status = None
         self.task_dict = task_dict
-        compile.add_task(self, self.task_dict)
+        compile.add_task(self.task_dict)
 
     def __repr__(self):
         return 'Rt_task()'
@@ -184,20 +181,27 @@ def process_rt_conf(job_obj):
     return compile_list
 
 
+def compile_tasks_to_file(job_obj, compile_list):
+    for compile in compile_list:
+        with open(f'{job_obj.get_value("PR Dir")}'
+                  '/ufs-weather-model/tests/'
+                  f'compile_{compile.compile_dict["number"]}.yaml',
+                  'w') as file:
+            yaml.dump(compile.compile_dict, file)
+        for task in compile.compile_dict['task_list']:
+            print(f'{compile.compile_dict["task_list"]}')
+            with open(f'{job_obj.get_value("PR Dir")}'
+                      '/ufs-weather-model/tests/'
+                      f'{task.task_dict["name"]}.yaml',
+                      'w') as file2:
+                yaml.dump(task.task_dict, file2)
+
+
 def run(job_obj):
-    logging.info('Processing Job Card')
-    if job_obj.get_value('Status') == 'Finished' \
-       and job_obj.get_value('Job') == 'Prep':
-        job_obj.update_key('Job', 'Setup')
-        job_obj.update_key('Status', 'Started')
-        job_obj.clone_pr_repo()
-        compile_list = process_rt_conf(job_obj)
-    else:
-        notes = job_obj.get_value('Notes')
-        notes += 'Prep job not finished. Will not continue\n'
-        job_obj.update_key('Notes', notes)
-        job_obj.failed()
-        logging.info('Prep job not finished. Will not continue')
-        raise RuntimeError('Prep job not finished. Will not continue')
+    job_obj.update_key('Job', 'Setup')
+    job_obj.update_key('Status', 'Started')
+    clone_pr_repo(job_obj)
+    compile_list = process_rt_conf(job_obj)
+    compile_tasks_to_file(job_obj, compile_list)
     job_obj.update_key('Status', 'Finished')
     logging.info('Finished Processing Job Card')

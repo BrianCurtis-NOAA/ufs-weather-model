@@ -271,6 +271,7 @@ class Job:
     def check_finished(self):
         if self.get_value('Job') == 'Prep':
             setup_jobs.run(self)
+            sys.exit()
         elif self.get_value('Job') == 'Setup':
             if self.get_value('New Baselines'):
                 bl.run(self)
@@ -304,10 +305,10 @@ class Job:
             return
 
         elif (self.get_value('Status') == 'Fixed'):
-            self.check_fixed(self)
+            self.check_fixed()
 
         elif (self.get_value('Status') == 'Finished'):
-            self.check_finished(self)
+            self.check_finished()
 
         elif self.get_value('Status') == 'Processed':
             if self.get_value('Job') == 'BL':

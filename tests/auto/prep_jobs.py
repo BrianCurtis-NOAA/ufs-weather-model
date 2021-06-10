@@ -66,6 +66,9 @@ def setup_env():
     elif bool(re.match(re.compile('chadmin.+'), hostname)):
         machine = 'cheyenne'
         compilers = ['gnu', 'intel']
+    elif bool(re.match(re.compile('neon'), hostname)):
+        machine = 'neon'
+        compilers = ['gnu', 'intel']
     else:
         raise KeyError(f'Hostname: {hostname} does not match '
                        'for a supported system. Exiting.')
