@@ -13,6 +13,8 @@ import yaml
 from prep_jobs import GHInterface
 import bl
 import rt
+import setup_jobs
+import process_jobs
 
 
 class Job:
@@ -238,61 +240,89 @@ class Job:
 
         logging.info('Finished setting up HPC account information')
 
+    # STEPS
+    # Prep - DONE SEPARATELY
+    # Setup
+    # BL
+    # RT
+    # Process
+    # Finished -> Processed (after process_jobs)
+
+    def check_fixed(self):
+        if self.get_value('Job') == 'Setup':
+            setup_jobs.run(self)
+        elif self.get_value('Job') == 'BL':
+            bl.run(self)
+        elif self.get_value('Job') == 'RT':
+            rt.run(self)
+        elif self.get_value('Job') == 'Process':
+            process_jobs.run(self)
+        else:
+            logging.error('Status is "Fixed" but Job is '
+                          'unidentifiable')
+            notes = self.get_value('Notes')
+            notes += 'Status is "Fixed" but Job is '\
+                     'unidentifiable\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise RuntimeError('Status is "Fixed" but Job is '
+                               'unidentifiable')
+
+    def check_finished(self):
+        if self.get_value('Job') == 'Prep':
+            setup_jobs.run(self)
+        elif self.get_value('Job') == 'Setup':
+            if self.get_value('New Baselines'):
+                bl.run(self)
+            else:
+                rt.run(self)
+        elif self.get_value('Job') == 'BL':
+            process_jobs.run(self)
+        elif self.get_value('Job') == 'RT':
+            process_jobs.run(self)
+        else:
+            logging.error('Status is "Finished" but Job is '
+                          'unidentifiable')
+            notes = self.get_value('Notes')
+            notes += 'Status is "Finished" but Job is '\
+                     'unidentifiable\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise RuntimeError('Status is "Finished" but Job is '
+                               'unidentifiable')
+
     def run(self):
         logging.info('Processing Job Card')
         self.setup_env()
         self.check_and_remove_old_job()
-        if self.get_value('Status') == 'New':
-            logging.debug('Status is "New"')
-            self.clone_pr_repo()
-            # Here we check to run BL
-            if self.get_value('New Baselines'):
-                logging.debug('PR requests "New Baselines", running "BL" job')
-                bl.run(self)
-                # Once completed successfully, run the RT
-                if self.get_value('Job') == 'BL' \
-                   and self.get_value('Status') == 'Completed':
-                    rt.run(self)
-                else:
-                    logging.error('Baseline creation failed')
-                    notes = self.get_value('Notes')
-                    notes += 'Baseline creation failed\n'
-                    self.update_key('Notes', notes)
-                    self.failed()
-                    raise RuntimeError('Baseline creation failed')
-            else:
-                # Just run the RT
-                logging.debug('I do not see "New Baselines", running "RT" job')
-                rt.run(self)
-                if self.get_value('Job') == 'RT' \
-                   and self.get_value('Status') == 'Failed':
-                    logging.error('Regression testing job failed')
-                    notes = self.get_value('Notes')
-                    notes += 'Regression test job failed\n'
-                    self.update_key('Notes', notes)
-                    self.failed()
-                    raise RuntimeError('Regression test job failed')
-        elif self.get_value('Status') == 'Fixed':
-            logging.debug('I see a status of "Fixed" in job card')
+        if self.get_value('Status') == 'Failed':
+            logging.info('Job in "Failed" status, doing nothing')
+            return
+
+        elif self.get_value('Status') == 'Completed':
+            logging.info('Job is completed, not proceeding')
+            return
+
+        elif (self.get_value('Status') == 'Fixed'):
+            self.check_fixed(self)
+
+        elif (self.get_value('Status') == 'Finished'):
+            self.check_finished(self)
+
+        elif self.get_value('Status') == 'Processed':
             if self.get_value('Job') == 'BL':
-                bl.run(self)
+                rt.run()
             elif self.get_value('Job') == 'RT':
-                rt.run(self)
-            elif self.get_value('Job') == 'Cloning PR Repo':
-                self.update_key('Status', 'New')
-                self.run()
-            else:
-                logging.error('I cannot identify where to start '
-                              'Please change job card "Status" to "New"')
-                notes = self.get_value('Notes')
-                notes += 'Saw "Fixed" in job card, but can not identify '\
-                         'where to start. Please change "Status" to "New"\n'
-                self.update_key('Notes', notes)
-                self.failed()
-                raise RuntimeError('Unable to identify where to start')
+                self.update_key('Status', 'Completed')
+                logging.info('Regression Testing Processed, Job Completed')
+                return
         else:
-            logging.info('Status is not "New" or "Fixed", will not act upon.')
-        logging.info('Finished Processing Job Card')
+            logging.error('Unknown Status')
+            notes = self.get_value('Notes')
+            notes += 'Unknown Status\n'
+            self.update_key('Notes', notes)
+            self.failed()
+            raise RuntimeError('Unknown Status')
 
 
 def get_job_files():
