@@ -50,6 +50,7 @@ class GHInterface:
 
 def setup_env():
     hostname = os.getenv('HOSTNAME')
+    hostname = "neon"
     logging.debug(f'Hostname: {hostname}')
     if bool(re.match(re.compile('hfe.+'), hostname)):
         machine = 'hera'
@@ -68,7 +69,7 @@ def setup_env():
         compilers = ['gnu', 'intel']
     elif bool(re.match(re.compile('neon'), hostname)):
         machine = 'neon'
-        compilers = ['gnu', 'intel']
+        compilers = ['intel']
     else:
         raise KeyError(f'Hostname: {hostname} does not match '
                        'for a supported system. Exiting.')
@@ -86,6 +87,8 @@ def create_job_yaml(machine, compilers, ghinterface_obj, repo, pull_request):
         job_dict['Machine'] = machine
         job_dict['Compiler'] = compiler
         job_dict['Repo ID'] = repo.id
+        job_dict['Job'] = 'Prep'
+        job_dict['Status'] = 'Finished'
         job_dict['PR Number'] = pull_request.number
         job_dict['PR Dir'] = f'{os.getcwd()}/pr/'\
                              f'{pull_request.number}/{compiler}'

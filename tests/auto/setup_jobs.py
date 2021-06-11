@@ -76,23 +76,16 @@ class Rt_task:
 
     def __init__(self, compile, conf_line):
         task_dict = {}
-        task_dict['compile'] = compile
+        task_dict['compile'] = compile.compile_dict["number"]
         task_dict['conf_line'] = conf_line
-        # self.compile = compile
-        # self.conf_line = conf_line
 
         splitline = task_dict['conf_line'].split('|')
         task_dict['name'] = splitline[1].strip()
-        # self.name = splitline[1].strip()
         if compile.compile_dict["repro"]:
             task_dict['name'] += '_repro'
-            # self.name += '_repro'
         task_dict['fv3'] = splitline[3].strip()
         task_dict['dependency'] = splitline[4].strip()
         task_dict['status'] = None
-        # self.fv3 = splitline[3].strip()
-        # self.dependency = splitline[4].strip()
-        # self.status = None
         self.task_dict = task_dict
         compile.add_task(self.task_dict)
 
@@ -184,17 +177,16 @@ def process_rt_conf(job_obj):
 def compile_tasks_to_file(job_obj, compile_list):
     for compile in compile_list:
         with open(f'{job_obj.get_value("PR Dir")}'
-                  '/ufs-weather-model/tests/'
+                  '/ufs-weather-model/tests/auto/'
                   f'compile_{compile.compile_dict["number"]}.yaml',
                   'w') as file:
             yaml.dump(compile.compile_dict, file)
         for task in compile.compile_dict['task_list']:
-            print(f'{compile.compile_dict["task_list"]}')
             with open(f'{job_obj.get_value("PR Dir")}'
-                      '/ufs-weather-model/tests/'
-                      f'{task.task_dict["name"]}.yaml',
+                      '/ufs-weather-model/tests/auto/'
+                      f'{task["name"]}.yaml',
                       'w') as file2:
-                yaml.dump(task.task_dict, file2)
+                yaml.dump(task, file2)
 
 
 def run(job_obj):
