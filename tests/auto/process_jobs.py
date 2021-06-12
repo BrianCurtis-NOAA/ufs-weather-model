@@ -60,17 +60,29 @@ def update_status(compiles, machine):
     return failure
 
 
-def get_job_files(job_obj):
-    logging.info('Getting Job Files')
+def get_compile_file_list(job_obj):
+    logging.info('Getting Compile Files')
     compile_list = []
     files = os.listdir(f'{job_obj["PR Dir"]}/ufs-weather-model/tests/auto')
 
     for file in files:
-        if '.yaml' in file:
+        if 'compile' in file and '.yaml' in file:
             compile_list.append(file)
     logging.debug(f'Compile List: {compile_list}')
-    logging.info('Finished Getting Job Files')
+    logging.info('Finished Getting Compile Files')
     return compile_list
+
+def get_task_file_list(job_obj):
+    logging.info('Getting Task Files')
+    task_file_list = []
+    files = os.listdir(f'{job_obj["PR Dir"]}/ufs-weather-model/tests/auto')
+
+    for file in files:
+        if not 'compile' in file and '.yaml' in file:
+            task_file_list.append(file)
+    logging.debug(f'Task File List: {task_file_list}')
+    logging.info('Finished Getting Task Files')
+    return task_file_list
 
 
 def read_dict(self):
@@ -78,6 +90,10 @@ def read_dict(self):
     with open(self.file) as infile:
         self.dict = yaml.full_load(infile)
     logging.info('Finished Reading Job File')
+
+
+def run(job_obj):
+    compiles = get_job_files
 
 
 def run(job_obj):
