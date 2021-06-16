@@ -19,4 +19,9 @@ jobs:
           pip install fortran-linter
       - name: Lint all fortran files
         run: |
-          fortran-linter `find . -iregex ".*\.F[0-9]*" -o -iregex ".*\.for"` --syntax-only
+          fortran_files=`find . -iregex ".*\.F[0-9]*" -o -iregex ".*\.for"`
+          for file in $fortran_files
+          do
+              echo "File: ${file}"
+              fortran-linter $file --syntax-only
+          done
