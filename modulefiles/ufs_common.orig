@@ -1,6 +1,5 @@
 #%Module
 
-#Compression
 module load jasper/2.0.22
 module load zlib/1.2.11
 module load png/1.6.35
