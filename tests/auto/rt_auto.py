@@ -125,7 +125,7 @@ class Job:
         self.ghinterface_obj = ghinterface_obj
         self.machine = machine
         self.compiler = compiler
-        self.comment_text = ''
+        self.comment_text = '***Automated RT Failure Notification***\n'
         self.failed_tests = []
 
     def comment_text_append(self, newtext):
