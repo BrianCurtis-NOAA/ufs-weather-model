@@ -20,12 +20,11 @@ module load hpc-impi/2018.4
 
 module load ufs_common
 
-#SPECIAL COMPRESSION TESTING OVERRIDES
-#module unload hdf5/1.10.6
-#module unload zlib
+######SPECIAL COMPRESSION TESTING OVERRIDES
 module load hdf5/1.12.1-zlib-ng
 module load zlib_ng
-module load netcdf/4.7.4
+module load netcdf/4.8.1
+######
 
 setenv CC mpiicc
 setenv CXX mpiicpc
