@@ -61,8 +61,6 @@ def clone_pr_repo(job_obj, workdir):
     repo_name = job_obj.preq_dict['preq'].head.repo.name
     branch = job_obj.preq_dict['preq'].head.ref
     #git_url = job_obj.preq_dict['preq'].head.repo.html_url.split('//')
-    logger.info('SSH_URL')
-    logger.info(job_obj.preq_dict['preq'],head.repo.ssh_url)
     git_ssh_url = job_obj.preq_dict['preq'].head.repo.ssh_url
     logger.debug(f'GIT SSH_URL: {git_ssh_url}')
     logger.info('Starting repo clone')
