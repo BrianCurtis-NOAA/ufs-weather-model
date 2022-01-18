@@ -83,7 +83,7 @@ def delete_pr_dirs(each_pr, machine):
     elif machine == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/emc.nemspara/autort/pr'
     elif machine == 'orion':
-        workdir = '/work/noaa/nems/bcurtis/git/BrianCurtis-NOAA/ufs-weather-model/tests/auto/pr'
+        workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
     elif machine == 'cheyenne':
         workdir = '/glade/scratch/dtcufsrt/autort/tests/auto/pr'
     else:
@@ -299,15 +299,10 @@ def setup_env():
                         'for a supported system. Exiting.')
 
     # Dictionary of GitHub repositories to check
-    #repo_dict = [{
-    #    'name': 'ufs-weather-model',
-    #    'address': 'ufs-community/ufs-weather-model',
-    #    'base': 'develop'
-    #}]
     repo_dict = [{
         'name': 'ufs-weather-model',
-        'address': 'BrianCurtis-NOAA/ufs-weather-model',
-        'base': 'feature/autort-bl'
+        'address': 'ufs-community/ufs-weather-model',
+        'base': 'develop'
     }]
 
     # Approved Actions
