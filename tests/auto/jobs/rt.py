@@ -21,7 +21,7 @@ def set_directories(job_obj):
     elif job_obj.machine == 'gaea':
         workdir = '/lustre/f2/pdata/ncep/emc.nemspara/autort/pr'
     elif job_obj.machine == 'orion':
-        workdir = '/work/noaa/nems/bcurtis/git/BrianCurtis-NOAA/ufs-weather-model/tests/auto/pr'
+        workdir = '/work/noaa/nems/emc.nemspara/autort/pr'
     elif job_obj.machine == 'cheyenne':
         workdir = '/glade/scratch/dtcufsrt/autort/tests/auto/pr'
     else:
@@ -94,24 +94,22 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
     if logfile_pass:
-        if job_obj.preq_dict['preq'].maintainer_can_modify:
-            move_rt_commands = [
-                [f'git pull --ff-only origin {branch}', pr_repo_loc],
-                [f'git add {rt_log}', pr_repo_loc],
-                [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
-                 f'.{job_obj.compiler}. Log file uploaded.\n\n'
-                  'on-behalf-of @ufs-community"',
-                 pr_repo_loc],
-                ['sleep 10', pr_repo_loc],
-                [f'git push origin {branch}', pr_repo_loc]
-            ]
-            job_obj.run_commands(logger, move_rt_commands)
-        else:
-            job_obj.comment_text_append(f'Cannot upload {job_obj.machine}.'\
-                                        f'{job_obj.compiler} RT Log'\
-                                        'It is blocked by PR owner')
-            job_obj.comment_text_append(f'Please obtain logs from {pr_repo_loc}')
-            job_obj.preq_dict['preq'].create_issue_comment(job_obj.comment_text)
+        #if job_obj.preq_dict['preq'].maintainer_can_modify:
+        move_rt_commands = [
+            [f'git pull --ff-only origin {branch}', pr_repo_loc],
+            [f'git add {rt_log}', pr_repo_loc],
+            [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
+             f'.{job_obj.compiler}. Log file uploaded.\n\n'
+              'on-behalf-of @ufs-community"',
+             pr_repo_loc],
+            ['sleep 10', pr_repo_loc],
+            [f'git push origin {branch}', pr_repo_loc]
+        ]
+        job_obj.run_commands(logger, move_rt_commands)
+    else:
+        job_obj.comment_text_append(f'Log file shows failures.')
+        job_obj.comment_text_append(f'Please obtain logs from {pr_repo_loc}')
+        job_obj.preq_dict['preq'].create_issue_comment(job_obj.comment_text)
 
 
 def process_logfile(job_obj, logfile):
