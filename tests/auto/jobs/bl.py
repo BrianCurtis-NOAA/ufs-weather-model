@@ -166,7 +166,6 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir):
         logger.info('Starting RT Job')
         rt.run(job_obj)
         logger.info('Finished with RT Job')
-        remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir)
 
 
 def get_bl_date(job_obj, pr_repo_loc):

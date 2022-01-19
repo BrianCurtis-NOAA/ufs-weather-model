@@ -106,7 +106,6 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
                 [f'git push origin {branch}', pr_repo_loc]
             ]
             job_obj.run_commands(logger, move_rt_commands)
-            remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir)
         else:
             job_obj.comment_text_append(f'Cannot upload {job_obj.machine}.'\
                                         f'{job_obj.compiler} RT Log'\
