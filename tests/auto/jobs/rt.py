@@ -60,9 +60,9 @@ def clone_pr_repo(job_obj, workdir):
     logger = logging.getLogger('RT/CLONE_PR_REPO')
     repo_name = job_obj.preq_dict['preq'].head.repo.name
     branch = job_obj.preq_dict['preq'].head.ref
-    git_url = job_obj.preq_dict['preq'].head.repo.html_url.split('//')
-    git_url = f'{git_url[0]}//${{ghapitoken}}@{git_url[1]}'
-    logger.debug(f'GIT URL: {git_url}')
+    #git_url = job_obj.preq_dict['preq'].head.repo.html_url.split('//')
+    git_ssh_url = job_obj.preq_dict['preq'].head.repo.ssh_url
+    logger.debug(f'GIT SSH_URL: {git_ssh_url}')
     logger.info('Starting repo clone')
     repo_dir_str = f'{workdir}/'\
                    f'{str(job_obj.preq_dict["preq"].id)}/'\
@@ -71,7 +71,7 @@ def clone_pr_repo(job_obj, workdir):
     job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
     create_repo_commands = [
         [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
-        [f'git clone -b {branch} {git_url}', repo_dir_str],
+        [f'git clone -b {branch} {git_ssh_url}', repo_dir_str],
         ['git submodule update --init --recursive',
          f'{repo_dir_str}/{repo_name}'],
         ['git config user.email "brian.curtis@noaa.gov"',
@@ -94,24 +94,22 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
     filepath = f'{pr_repo_loc}/{rt_log}'
     rt_dir, logfile_pass = process_logfile(job_obj, filepath)
     if logfile_pass:
-        if job_obj.preq_dict['preq'].maintainer_can_modify:
-            move_rt_commands = [
-                [f'git pull --ff-only origin {branch}', pr_repo_loc],
-                [f'git add {rt_log}', pr_repo_loc],
-                [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
-                 f'.{job_obj.compiler}. Log file uploaded.\n\n'
-                  'on-behalf-of @ufs-community"',
-                 pr_repo_loc],
-                ['sleep 10', pr_repo_loc],
-                [f'git push origin {branch}', pr_repo_loc]
-            ]
-            job_obj.run_commands(logger, move_rt_commands)
-        else:
-            job_obj.comment_text_append(f'Cannot upload {job_obj.machine}.'\
-                                        f'{job_obj.compiler} RT Log'\
-                                        'It is blocked by PR owner')
-            job_obj.comment_text_append(f'Please obtain logs from {pr_repo_loc}')
-            job_obj.preq_dict['preq'].create_issue_comment(job_obj.comment_text)
+        #if job_obj.preq_dict['preq'].maintainer_can_modify:
+        move_rt_commands = [
+            [f'git pull --ff-only origin {branch}', pr_repo_loc],
+            [f'git add {rt_log}', pr_repo_loc],
+            [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
+             f'.{job_obj.compiler}. Log file uploaded.\n\n'
+              'on-behalf-of @ufs-community"',
+             pr_repo_loc],
+            ['sleep 10', pr_repo_loc],
+            [f'git push origin {branch}', pr_repo_loc]
+        ]
+        job_obj.run_commands(logger, move_rt_commands)
+    else:
+        job_obj.comment_text_append(f'Log file shows failures.')
+        job_obj.comment_text_append(f'Please obtain logs from {pr_repo_loc}')
+        job_obj.preq_dict['preq'].create_issue_comment(job_obj.comment_text)
 
 
 def process_logfile(job_obj, logfile):
