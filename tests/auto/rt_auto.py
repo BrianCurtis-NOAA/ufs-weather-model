@@ -99,8 +99,11 @@ def delete_pr_dirs(each_pr, machine):
             if not dir in ids:
                 logging.debug(f'ID NOT A MATCH, DELETING {dir}')
                 delete_rt_dirs(dir, machine, workdir)
-                logging.debug(f'Executing rmtree in "{workdir}/{dir}"')
-                rmtree(f'{workdir}/{dir}')
+                if os.path.isdir(f'{workdir}/{dir}'):
+                    logging.debug(f'Executing rmtree in "{workdir}/{dir}"')
+                    rmtree(f'{workdir}/{dir}')
+                else:
+                    logging.debug(f'{workdir}/{dir} does not exist, not attempting to remove')
             else:
                 logging.debug(f'ID A MATCH, NOT DELETING {dir}')
     # job_obj.preq_dict["preq"].id
@@ -139,8 +142,11 @@ def delete_rt_dirs(in_dir, machine, workdir):
     matches = list(set([item for sublist in matches for item in sublist]))
     logging.debug(f'matches: {matches}')
     for match in matches:
-        logging.debug(f'Executing rmtree in "{rt_dir}/{match}"')
-        rmtree(f'{rt_dir}/{match}')
+        if os.path.isdir(f'{rt_dir}/{match}'):
+            logging.debug(f'Executing rmtree in "{rt_dir}/{match}"')
+            rmtree(f'{rt_dir}/{match}')
+        else:
+            logging.debug(f'{rt_dir}/{match} does not exist, not attempting to remove')
 
 
 def get_preqs_with_actions(repos, machine, ghinterface_obj, actions):
