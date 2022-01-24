@@ -292,6 +292,9 @@ def setup_env():
     elif bool(re.match(re.compile('fe.+'), hostname)):
         machine = 'jet'
         os.environ['ACCNR'] = 'h-nems'
+    elif bool(re.match(re.compile('tfe.+'), hostname)):
+        machine = 'jet'
+        os.environ['ACCNR'] = 'h-nems'
     elif bool(re.match(re.compile('gaea.+'), hostname)):
         machine = 'gaea'
         os.environ['ACCNR'] = 'nggps_emc'
