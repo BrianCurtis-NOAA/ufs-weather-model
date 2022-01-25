@@ -13,7 +13,7 @@ def run(job_obj):
     bldir = f'{blstore}/develop-{bldate}/{job_obj.compiler.upper()}'
     bldirbool = check_for_bl_dir(bldir, job_obj)
     run_regression_test(job_obj, pr_repo_loc)
-    post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir)
+    post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir, bldate, blstore)
 
 
 def set_directories(job_obj):
@@ -152,7 +152,7 @@ def clone_pr_repo(job_obj, workdir):
     return pr_repo_loc, repo_dir_str
 
 
-def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir):
+def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir, bldate, blstore):
     logger = logging.getLogger('BL/MOVE_RT_LOGS')
     rt_log = f'tests/RegressionTests_{job_obj.machine}'\
              f'.{job_obj.compiler}.log'
@@ -161,14 +161,11 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir):
     if logfile_pass:
         create_bl_dir(bldir, job_obj)
         move_bl_command = [[f'mv {rtbldir}/* {bldir}/', pr_repo_loc]]
-        if job_obj.machine == 'orion':
-            move_bl_command.append([f'/bin/bash --login adjust_permissions.sh orion develop-{bldate}', blstore])
         job_obj.run_commands(logger, move_bl_command)
         job_obj.comment_text_append('[BL] Baseline creation and move successful')
         logger.info('Starting RT Job')
         rt.run(job_obj)
         logger.info('Finished with RT Job')
-        remove_pr_data(job_obj, pr_repo_loc, repo_dir_str, rt_dir)
 
 
 def get_bl_date(job_obj, pr_repo_loc):
