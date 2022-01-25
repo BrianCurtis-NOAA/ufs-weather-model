@@ -68,7 +68,7 @@ def clone_pr_repo(job_obj, workdir):
                    f'{str(job_obj.preq_dict["preq"].id)}/'\
                    f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
-    job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
+    job_obj.comment_text_append(f'[RT] Repo location: {pr_repo_loc}')
     create_repo_commands = [
         [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
         [f'git clone -b {branch} {git_ssh_url}', repo_dir_str],
@@ -98,17 +98,17 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, branch):
         move_rt_commands = [
             [f'git pull --ff-only origin {branch}', pr_repo_loc],
             [f'git add {rt_log}', pr_repo_loc],
-            [f'git commit -m "RT JOBS PASSED: {job_obj.machine}'
-             f'.{job_obj.compiler}. Log file uploaded.\n\n'
-              'on-behalf-of @ufs-community"',
+            [f'git commit -m "[AutoRT] {job_obj.machine}'
+             f'.{job_obj.compiler} Job Completed.\n\n\n'
+              'on-behalf-of @ufs-community <brian.curtis@noaa.gov>"',
              pr_repo_loc],
             ['sleep 10', pr_repo_loc],
             [f'git push origin {branch}', pr_repo_loc]
         ]
         job_obj.run_commands(logger, move_rt_commands)
     else:
-        job_obj.comment_text_append(f'Log file shows failures.')
-        job_obj.comment_text_append(f'Please obtain logs from {pr_repo_loc}')
+        job_obj.comment_text_append(f'[RT] Log file shows failures.')
+        job_obj.comment_text_append(f'[RT] Please obtain logs from {pr_repo_loc}')
         job_obj.preq_dict['preq'].create_issue_comment(job_obj.comment_text)
 
 
@@ -121,11 +121,10 @@ def process_logfile(job_obj, logfile):
             for line in f:
                 if all(x in line for x in fail_string_list):
                 # if 'FAIL' in line and 'Test' in line:
+                    job_obj.comment_text_append('[RT] ERROR: The following jobs have FAILED')
                     job_obj.comment_text_append(f'{line.rstrip(chr(10))}')
                 elif 'working dir' in line and not rt_dir:
                     rt_dir = os.path.split(line.split()[-1])[0]
-                    job_obj.comment_text_append(f'Please manually delete: '
-                                                f'{rt_dir}')
                 elif 'SUCCESSFUL' in line:
                     return rt_dir, True
         job_obj.job_failed(logger, f'{job_obj.preq_dict["action"]}')

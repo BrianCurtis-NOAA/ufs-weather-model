@@ -60,8 +60,8 @@ def check_for_bl_dir(bldir, job_obj):
     logger.info('Checking if baseline directory exists')
     if os.path.exists(bldir):
         logger.critical(f'Baseline dir: {bldir} exists. It should not, yet.')
-        job_obj.comment_text_append(f'{bldir}\n Exists already. '
-                                    'It should not yet. Please delete.')
+        job_obj.comment_text_append(f'[BL] ERROR: Baseline location exists before '
+                                    f'creation:\n{bldir}'
         raise FileExistsError
     return False
 
@@ -134,7 +134,7 @@ def clone_pr_repo(job_obj, workdir):
                    f'{str(job_obj.preq_dict["preq"].id)}/'\
                    f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     pr_repo_loc = f'{repo_dir_str}/{repo_name}'
-    job_obj.comment_text_append(f'Repo location: {pr_repo_loc}')
+    job_obj.comment_text_append(f'[BL] Repo location: {pr_repo_loc}')
     create_repo_commands = [
         [f'mkdir -p "{repo_dir_str}"', os.getcwd()],
         [f'git clone -b {branch} {git_ssh_url}', repo_dir_str],
@@ -164,7 +164,7 @@ def post_process(job_obj, pr_repo_loc, repo_dir_str, rtbldir, bldir):
         if job_obj.machine == 'orion':
             move_bl_command.append([f'/bin/bash --login adjust_permissions.sh orion develop-{bldate}', blstore])
         job_obj.run_commands(logger, move_bl_command)
-        job_obj.comment_text_append('Baseline creation and move successful')
+        job_obj.comment_text_append('[BL] Baseline creation and move successful')
         logger.info('Starting RT Job')
         rt.run(job_obj)
         logger.info('Finished with RT Job')
@@ -192,9 +192,7 @@ def get_bl_date(job_obj, pr_repo_loc):
                     logger.info(f'Date {bldate} is not formatted YYYYMMDD')
                     raise ValueError
     if not BLDATEFOUND:
-        job_obj.comment_text_append('BL_DATE not found in rt.sh.'
-                                    'Please manually edit rt.sh '
-                                    'with BL_DATE={bldate}')
+        job_obj.comment_text_append('[BL] ERROR: Variable "BL_DATE" not found in rt.sh.')
         job_obj.job_failed(logger, 'get_bl_date()')
     logger.info('Finished get_bl_date')
 
@@ -210,13 +208,12 @@ def process_logfile(job_obj, logfile):
             for line in f:
                 if all(x in line for x in fail_string_list):
                 # if 'FAIL' in line and 'Test' in line:
+                    job_obj.comment_text_append('[BL] ERROR: The following jobs have FAILED')
                     job_obj.comment_text_append(f'{line.rstrip(chr(10))}')
                 elif 'working dir' in line and not rt_dir:
                     logger.info(f'Found "working dir" in line: {line}')
                     rt_dir = os.path.split(line.split()[-1])[0]
                     logger.info(f'It is: {rt_dir}')
-                    job_obj.comment_text_append(f'Please manually delete: '
-                                                f'{rt_dir}')
                 elif 'SUCCESSFUL' in line:
                     logger.info('RT Successful')
                     return rt_dir, True
