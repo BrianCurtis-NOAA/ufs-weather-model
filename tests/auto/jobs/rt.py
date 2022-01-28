@@ -121,8 +121,7 @@ def process_logfile(job_obj, logfile):
             for line in f:
                 if all(x in line for x in fail_string_list):
                 # if 'FAIL' in line and 'Test' in line:
-                    job_obj.comment_text_append('[RT] ERROR: The following jobs have FAILED')
-                    job_obj.comment_text_append(f'{line.rstrip(chr(10))}')
+                    job_obj.comment_text_append(f'[RT] Error: {line.rstrip(chr(10))}')
                 elif 'working dir' in line and not rt_dir:
                     rt_dir = os.path.split(line.split()[-1])[0]
                 elif 'SUCCESSFUL' in line:

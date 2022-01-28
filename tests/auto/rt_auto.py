@@ -268,8 +268,8 @@ class Job:
         logger = logging.getLogger('JOB/SEND_COMMENT_TEXT')
         logger.info(f'Comment Text: {self.comment_text}')
         self.comment_text_append('Please make changes and add '
-                                 'the following label back:')
-        self.comment_text_append(f'{self.machine}'
+                                 'the following label back: '
+                                 f'{self.machine}'
                                  f'-{self.compiler}'
                                  f'-{self.preq_dict["action"]}')
 
