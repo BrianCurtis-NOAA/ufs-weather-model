@@ -61,7 +61,7 @@ def check_for_bl_dir(bldir, job_obj):
     if os.path.exists(bldir):
         logger.critical(f'Baseline dir: {bldir} exists. It should not, yet.')
         job_obj.comment_text_append(f'[BL] ERROR: Baseline location exists before '
-                                    f'creation:\n{bldir}'
+                                    f'creation:\n{bldir}')
         raise FileExistsError
     return False
 
