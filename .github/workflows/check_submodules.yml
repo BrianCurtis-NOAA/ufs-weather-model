@@ -1,0 +1,19 @@
+name: check-submodule
+
+on: [push, pull_request]
+
+jobs:
+  check-submodules:
+    name: Check Submodule
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout this repo
+      uses: actions/checkout@v2
+    - name: Check Submodule Name
+      uses: jtmullen/submodule-branch-check-action@v1
+      with:
+        path: "FV3"
+        branch: "develop"
+        fetch_depth: "3"
+        pass_if_unchanged: true
+        require_head: true
