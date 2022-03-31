@@ -9,11 +9,27 @@ jobs:
     steps:
     - name: Checkout this repo
       uses: actions/checkout@v2
-    - name: Check Submodule Name
+    - name: Check Submodule FV3
       uses: jtmullen/submodule-branch-check-action@v1
       with:
         path: "FV3"
         branch: "develop"
-        fetch_depth: "3"
+        fetch_depth: "50"
+        pass_if_unchanged: true
+        require_head: true
+    - name: Check Submodule WW3
+      uses: jtmullen/submodule-branch-check-action@v1
+      with:
+        path: "WW3"
+        branch: "develop"
+        fetch_depth: "50"
+        pass_if_unchanged: true
+        require_head: true
+    - name: Check Submodule GOCART
+      uses: jtmullen/submodule-branch-check-action@v1
+      with:
+        path: "GOCART"
+        branch: "develop"
+        fetch_depth: "50"
         pass_if_unchanged: true
         require_head: true
