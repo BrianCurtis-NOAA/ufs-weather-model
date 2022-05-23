@@ -111,7 +111,7 @@ def delete_pr_dirs(each_pr, machine):
 
 def delete_rt_dirs(in_dir, machine, workdir):
     if machine == 'hera':                                                                                     
-        rt_dir ='/scratch1/NCEPDEV/stmp4/emc.nemspara/FV3_RT' 
+        rt_dir ='/scratch1/NCEPDEV/stmp2/emc.nemspara/FV3_RT' 
     elif machine == 'jet':
         rt_dir ='/lfs4/HFIP/h-nems/emc.nemspara/RT_BASELINE/'\
                f'emc.nemspara/FV3_RT'
