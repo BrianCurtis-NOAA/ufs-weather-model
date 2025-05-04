@@ -1,5 +1,0 @@
-mkdir -p INPUT
-
-cd INPUT
-rsync -arv @[INPUTDATA_ROOT]/DOCN_OISST_input_data/. .
-cd -

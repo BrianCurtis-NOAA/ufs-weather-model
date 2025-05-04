@@ -1,4 +1,0 @@
-mkdir -p INPUT
-
-#For consistency, same CDEPS docn and CICE ice prescribed input files (data and ESMF_mesh)
-cp @[INPUTDATA_ROOT]/DOCN_DICE_ERA5/* INPUT

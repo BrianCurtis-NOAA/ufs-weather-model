@@ -1,5 +1,0 @@
-mkdir -p INPUT
-
-cd INPUT
-rsync -arv @[INPUTDATA_ROOT]/DATM_ERA5_input_data/. .
-cd -
