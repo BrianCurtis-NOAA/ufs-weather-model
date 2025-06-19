@@ -26,6 +26,7 @@ export JNPES_cpl_c48=1
 export WPG_cpl_c48=6
 export OCN_tasks_cpl_c48=4
 export ICE_tasks_cpl_c48=4
+export WAV_tasks_cpl_c48=4
 
 export THRD_cpl_dflt=1
 export INPES_cpl_dflt=3
@@ -402,6 +403,10 @@ elif [[ ${MACHINE_ID} = noaacloud ]] ; then
     export ICE_tasks_cpl_thrd=10
     export WAV_tasks_cpl_thrd=12
 
+elif [[ ${MACHINE_ID} = frontera ]]; then
+
+  TPN=56
+
 else
 
   echo "Unknown MACHINE_ID ${MACHINE_ID}"
@@ -413,6 +418,7 @@ export WLCLK_dflt=30
 
 export WLCLK=${WLCLK_dflt}
 export CMP_DATAONLY=false
+export nccmp_exclude=""
 
 # Defaults for ufs.configure
 export esmf_logkind="ESMF_LOGKIND_MULTI"
@@ -935,6 +941,9 @@ export EPBL=0.8,0.4,0.2,0.08,0.04
 export EPBL_LSCALE=500.E3,1000.E3,2000.E3,2000.E3,2000.E3
 export EPBL_TAU=2.16E4,2.592E5,2.592E6,7.776E6,3.1536E7
 export ISEED_EPBL=20210325000113,20210325000114,20210325000115,20210325000116,20210325000117
+export SKEBINT=1800
+export SHUMINT=3600
+export SPPTINT=1800
 
 #IAU
 export IAU_INC_FILES="''"
@@ -1148,7 +1157,7 @@ export_ugwpv1() {
       export K_SPLIT=2
       export N_SPLIT=4
       export TAU=3.0
-      export RF_CUTOFF=100.0
+      export RF_CUTOFF=300.0
       export FV_SG_ADJ=450
       ;;
     "C1152")
@@ -1160,7 +1169,7 @@ export_ugwpv1() {
       export K_SPLIT=2
       export N_SPLIT=6
       export TAU=2.5
-      export RF_CUTOFF=100.0
+      export RF_CUTOFF=300.0
       export FV_SG_ADJ=450
       ;;
     "C3072")
@@ -1172,7 +1181,7 @@ export_ugwpv1() {
       export K_SPLIT=4
       export N_SPLIT=5
       export TAU=0.5
-      export RF_CUTOFF=100.0
+      export RF_CUTOFF=300.0
       export FV_SG_ADJ=300
       ;;
     *)
@@ -1391,6 +1400,8 @@ export_cmeps() {
   # mediator ocean albedo
   export ocean_albedo_limit=0.06
   export use_mean_albedos=.false.
+  # vector remapping
+  export MAPUV3D=true
 }
 
 export_cpl ()
@@ -1405,6 +1416,7 @@ export DOCN_CDEPS=false
 export DICE_CDEPS=false
 export CICE_PRESCRIBED=false
 export CDEPS_INLINE=false
+export ULTRALOW=.false.
 export DAYS=1
 
 #model configure
@@ -1477,7 +1489,7 @@ export DIAG_TABLE=diag_table_cpld.IN
 export DIAG_TABLE_ADDITIONAL=''
 export FIELD_TABLE_ADDITIONAL=''
 export FV3_RUN=cpld_control_run.IN
-export TILEDFIX=.false.
+export TILEDFIX=.true.
 
 export FHZERO=6
 
@@ -1631,6 +1643,8 @@ export_datm_cdeps ()
 
   # Set CMEPS component defaults
   export_cmeps
+  # vector remapping
+  export MAPUV3D=false
   # default configure
   export UFS_CONFIGURE=ufs.configure.datm_cdeps.IN
   export atm_model=datm
