@@ -1,0 +1,89 @@
+compile:
+  - name: s2swa_32bit
+    compiler: intel
+    cmake_options: "-DAPP=S2SWA -D32BIT=ON -DCCPP_SUITES=FV3_GFS_v17_coupled_p8,FV3_GFS_v17_coupled_p8_ugwpv1"
+    machines: ""
+    dycore: fv3
+    disabled: false
+
+run:
+  - test: cpld_control_p8_mixedmode
+    machines: "- noaacloud"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_control_gefs_p8
+    machines: "- noaacloud derecho"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_restart_gefs
+    machines: "- noaacloud derecho"
+    baseline: false
+    compare: cpld_control_gefs
+    disabled: false
+
+compile:
+  - name: s2swa
+    compiler: intel
+    cmake_options: "-DAPP=S2SWA -DCCPP_SUITES=FV3_GFS_v17_coupled_p8,FV3_GFS_v17_coupled_p8_ugwpv1"
+    machines: ""
+    dycore: fv3
+    disabled: false
+
+run:
+  - test: cpld_control_p8
+    machines: "- noaacloud"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_control_p8.v2.sfc
+    machines: "- noaacloud"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_restart_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: cpld_control_p8
+    disabled: false
+  - test: cpld_control_qr_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: ""
+    disabled: false
+  - test: cpld_restart_qr_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: cpld_control_qr_p8
+    disabled: false
+  - test: cpld_2threads_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: ""
+    disabled: false
+  - test: cpld_decomp_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: ""
+    disabled: false
+  - test: cpld_mpi_p8
+    machines: "- noaacloud"
+    baseline: false
+    compare: ""
+    disabled: false
+  - test: cpld_control_ciceC_p8
+    machines: "- noaacloud"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_control_c192_p8
+    machines: "- wcoss2 jet acorn s4 noaacloud"
+    baseline: true
+    compare: ""
+    disabled: false
+  - test: cpld_restart_c192_p8
+    machines: "- wcoss2 jet acorn s4 noaacloud"
+    baseline: false
+    compare: cpld_control_c192_p8
+    disabled: false

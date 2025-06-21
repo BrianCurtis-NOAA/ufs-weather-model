@@ -2,6 +2,7 @@ import socket
 import re
 import os
 import sys
+import logging
 
 #https://stackoverflow.com/questions/70680363/structural-pattern-matching-using-regex
 class RegexEqual(str):
@@ -10,6 +11,8 @@ class RegexEqual(str):
 
 def detect_machine():
     systemHostname=socket.gethostname()
+    logger = logging.getLogger(__name__)
+    logger.debug(f"System Hostname retrieved as {systemHostname}")
 
     match RegexEqual(systemHostname):
         case (
@@ -79,12 +82,15 @@ def detect_machine():
             os.environ["MACHINE_ID"]="wcoss2"
             machineID="wcoss2"
         case _:
+            logger.error("Unsupported Machine.")
             raise TypeError("Unsupported Machine.")
     
+    logger.info(f"Machine ID set as: {machineID}")
     return machineID
         
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
     if "MACHINE_ID" in os.environ:
-        print("MACHINE_ID was set before starting script, safely exiting")
+        logger.warning("MACHINE_ID was set before starting script, safely exiting")
         sys.exit()
     machineID = detect_machine()

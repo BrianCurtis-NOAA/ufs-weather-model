@@ -1,0 +1,15 @@
+I want to turn into python/yaml.
+For input nanelists, try a str replace method
+for diag table and field_table, maybe generate that?
+for model_configure, try a str replace method
+for ufs.configure, try a str replace method
+
+Maybe each env setup has its own yaml in a "vars" directory
+
+Read in list of tests to run (YAML)
+Test by test:
+- Set up environment
+    - yaml with default vars (standalone)
+    - other environment sections defined in test yaml (each a standalone yaml)
+- Register compile
+- 
