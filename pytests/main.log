@@ -1,0 +1,23 @@
+INFO:__main__:Starting Regression Testing.
+INFO:__main__:Machine ID: ursa
+INFO:__main__:Parsing command line arguments.
+INFO:__main__:Finished Parsing command line arguments.
+DEBUG:__main__:Command line arguments: Namespace(accnr=['nems'], conf_file=None, compile_only=False, skip_check_results=False, create_baseline=False, compare_manual=False, single_test=None, tests_from_file=None, keep_rundir=False, delete_rundir=False, rocoto=False, ecflow=True, verbose=False)
+DEBUG:__main__:args.ecflow: True, args.rocoto: False
+DEBUG:__main__:Main PID: 797585
+DEBUG:__main__:Machine config: {'QUEUE': 'batch', 'COMPILE_QUEUE': 'batch', 'PARTITION': 'u1-compute', 'dprefix_if_accnr_epic': '/scratch4/NAGAPE/epic/Brian.Curtis/stmp', 'DISKNM': '/scratch4/NAGAPE/epic/role-epic/UFS-WM_RT', 'STMP': '/scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE', 'PTMP': '/scratch4/NCEPDEV/stmp/Brian.Curtis/RT_RUNDIRS', 'SCHEDULER': 'slurm'}
+DEBUG:__main__:main_config: {'BASELINE_DATE': 20250918}
+DEBUG:__main__:rt_config: {'NEW_BASELINE': '/scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE/Brian.Curtis/FV3_RT/REGRESSION_TEST', 'RUNDIR_ROOT': '/scratch4/NCEPDEV/stmp/Brian.Curtis/RT_RUNDIRS/Brian.Curtis/FV3_RT/rt_797585', 'RTPWD': '/scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/develop-20250918', 'INPUTDATA_ROOT': '/scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507', 'INPUTDATA_ROOT_WW3': '/scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507/WW3_input_data_20250807', 'INPUTDATA_LM4': '/scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507/LM4_input_data'}
+DEBUG:__main__:Path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_RUNDIRS exists.
+DEBUG:__main__:Path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE exists.
+DEBUG:__main__:Path /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT exists.
+DEBUG:__main__:Path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_RUNDIRS/Brian.Curtis/FV3_RT/rt_797585 does not exist.
+INFO:__main__:Creating path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_RUNDIRS/Brian.Curtis/FV3_RT/rt_797585.
+DEBUG:__main__:Path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE/Brian.Curtis/FV3_RT/REGRESSION_TEST exists.
+INFO:__main__:Removing directory /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE/Brian.Curtis/FV3_RT/REGRESSION_TEST and all its contents.
+INFO:__main__:Creating path /scratch4/NCEPDEV/stmp/Brian.Curtis/RT_BASELINE/Brian.Curtis/FV3_RT/REGRESSION_TEST.
+DEBUG:__main__:Path /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/develop-20250918 exists.
+DEBUG:__main__:Path /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507 exists.
+DEBUG:__main__:Path /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507/WW3_input_data_20250807 exists.
+DEBUG:__main__:Path /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT/NEMSfv3gfs/input-data-20250507/LM4_input_data exists.
+INFO:__main__:End of Regression Testing.

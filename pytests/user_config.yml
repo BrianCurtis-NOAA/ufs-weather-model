@@ -1,0 +1,137 @@
+main:
+  BASELINE_DATE: 20250918
+
+machine:
+  wcoss2:
+    DISKNM: "/lfs/h2/emc/nems/noscrub/emc.nems/RT"
+    QUEUE: "dev"
+    COMPILE_QUEUE: "dev"
+    ROCOTO_SCHEDULER: "pbs"
+    PARTITION: ""
+    STMP: "/lfs/h2/emc/ptmp"
+    PTMP: "/lfs/h2/emc/ptmp"
+    SCHEDULER: "pbs"
+
+  gaeac6:
+    ROCOTO_SCHEDULER: "slurm"
+    LD_PRELOAD: "/usr/lib64/libstdc++.so.6"
+    ECF_HOST: "$(hostname)"
+    ECF_PORT: "$(( $(id -u) + 1500 ))"
+    DISKNM: "/gpfs/f6/bil-fire8/world-shared/role.epic/UFS-WM_RT"
+    QUEUE: "normal"
+    COMPILE_QUEUE: "normal"
+    PARTITION: "c6"
+    dprefix: "${dprefix:-/gpfs/f6/${ACCNR}/proj-shared/${USER}}"
+    STMP: "${STMP:-${dprefix}/RT_BASELINE}"
+    PTMP: "${PTMP:-${dprefix}/RT_RUNDIRS}"
+    SCHEDULER: "slurm"
+
+  hera:
+    ROCOTO_SCHEDULER: "slurm"
+    QUEUE: "batch"
+    COMPILE_QUEUE: "batch"
+    PARTITION: ""
+    dprefix: "${dprefix:-\"/scratch3/NCEPDEV/stmp/${USER}\"}"
+    DISKNM: "/scratch3/NAGAPE/epic/role.epic/UFS-WM_RT"
+    STMP: "${dprefix}/RT_BASELINE"
+    PTMP: "${dprefix}/RT_RUNDIRS"
+    SCHEDULER: "slurm"
+
+  ursa:
+    QUEUE: batch
+    COMPILE_QUEUE: batch
+    PARTITION: u1-compute
+    dprefix_if_accnr_epic: /scratch4/NAGAPE/epic/${USER}/stmp
+    DISKNM: /scratch4/NAGAPE/epic/role-epic/UFS-WM_RT
+    STMP: /scratch4/NCEPDEV/stmp/${USER}/RT_BASELINE
+    PTMP: /scratch4/NCEPDEV/stmp/${USER}/RT_RUNDIRS
+    SCHEDULER: slurm
+
+  orion:
+    ROCOTO_SCHEDULER: "slurm"
+    ECF_HOST: "$(hostname)"
+    ECF_PORT: "$(($(id -u) + 1500))"
+    QUEUE: "batch"
+    COMPILE_QUEUE: "batch"
+    PARTITION: "orion"
+    dprefix: "${dprefix:-\"/work/noaa/stmp/${USER}\"}"
+    DISKNM: "/work/noaa/epic/UFS-WM_RT"
+    STMP: "${dprefix}/stmp"
+    PTMP: "${dprefix}/stmp"
+    SCHEDULER: "slurm"
+
+  hercules:
+    ROCOTO_SCHEDULER: "slurm"
+    ECF_HOST: "$(hostname)"
+    ECF_PORT: "$(($(id -u) + 1500))"
+    QUEUE: "batch"
+    COMPILE_QUEUE: "batch"
+    PARTITION: "hercules"
+    dprefix: "${dprefix:-\"/work2/noaa/stmp/${USER}\"}"
+    DISKNM: "/work/noaa/epic/hercules/UFS-WM_RT"
+    STMP: "${dprefix}/stmp"
+    PTMP: "${dprefix}/stmp"
+    SCHEDULER: "slurm"
+
+  jet:
+    ROCOTO_SCHEDULER: "slurm"
+    QUEUE: "batch"
+    COMPILE_QUEUE: "batch"
+    PARTITION: "xjet"
+    DISKNM: "/lfs5/HFIP/hfv3gfs/role.epic/RT"
+    dprefix: "${dprefix:-/lfs5/HFIP/${ACCNR}/${USER}}"
+    STMP: "${STMP:-${dprefix}/RT_BASELINE}"
+    PTMP: "${PTMP:-${dprefix}/RT_RUNDIRS}"
+    SCHEDULER: "slurm"
+
+  s4:
+    ROCOTO_SCHEDULER: "slurm"
+    ECF_HOST: "$(hostname)"
+    ECF_PORT: "$(($(id -u) + 1500))"
+    QUEUE: "s4"
+    COMPILE_QUEUE: "s4"
+    PARTITION: "s4"
+    dprefix: "${dprefix:-/data/prod}"
+    DISKNM: "${dprefix}/emc.nemspara/RT"
+    STMP: "/scratch/short/users"
+    PTMP: "/scratch/users"
+    SCHEDULER: "slurm"
+
+  derecho:
+    ECF_HOST: "$(hostname)"
+    ECF_PORT: "$(( $(id -u) + 1500 ))"
+    QUEUE: "main"
+    COMPILE_QUEUE: "main"
+    PARTITION: ""
+    dprefix: "${dprefix:-/glade/derecho/scratch}"
+    DISKNM: "/glade/derecho/scratch/epicufsrt/ufs-weather-model/RT/"
+    STMP: "${dprefix}"
+    PTMP: "${dprefix}"
+    SCHEDULER: "pbs"
+    ROCOTO_SCHEDULER: "pbspro"
+
+  noaacloud:
+    PATH: "/contrib/EPIC/bin:${PATH}"
+    ROCOTO_SCHEDULER: "slurm"
+    QUEUE: "batch"
+    COMPILE_QUEUE: "batch"
+    PARTITION: ""
+    dprefix: "${dprefix:-/lustre/}"
+    DISKNM: "/contrib/ufs-weather-model/RT"
+    STMP: "${dprefix}/stmp4"
+    PTMP: "${dprefix}/stmp2"
+    SCHEDULER: "slurm"
+
+  frontera:
+    PYTHONPATH: ""
+    ECFLOW_START: ""
+    QUEUE: "development"
+    COMPILE_QUEUE: "development"
+    PARTITION: ""
+    dprefix: "${SCRATCH}/frontera"
+    DISKNM: "/work2/01118/tg803972/frontera/RT"
+    STMP: "${dprefix}"
+    PTMP: "${dprefix}"
+    SCHEDULER: "slurm"
+    MPIEXEC: "ibrun"
+    MPIEXECOPTS: ""
