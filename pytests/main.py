@@ -5,6 +5,7 @@ import os
 import re
 import yaml
 import shutil
+import env_control
 from typing import Any #Type Hinting
 
 def parse_args():
@@ -108,26 +109,31 @@ def main():
     os.environ['MAIN_PID'] = str(main_pid)
     logger.debug(f'Main PID: {main_pid}')
 
+    # Create some dictionarys to store environment variables
+    rt_dictionary = env_control.Env_Dictionary
+    test_dictionary = env_control.Env_Dictionary
+
     config = parse_yaml('user_config.yml')
     
     machine_config = config['machine'][(machine_id)]
     logger.debug(f'Machine config: {machine_config}')
-    for key,iten in machine_config.items():
-        os.environ[key] = str(iten)
+    for key,item in machine_config.items():
+        rt_dictionary[key] = str(item)
     
-    main_config = config['main']
-    logger.debug(f'main_config: {main_config}')
-    for key,iten in main_config.items():
-        os.environ[key] = str(iten)
-
-    rt_config = parse_yaml('rt_config.yml')
-    logger.debug(f'rt_config: {rt_config}')
-    for key,iten in rt_config.items():
-        os.environ[key] = str(iten)
-
     process_path(machine_config['PTMP'], must_exist=True, create_path=True, delete_before=False)
     process_path(machine_config['STMP'], must_exist=True, create_path=True, delete_before=False)
     process_path(machine_config['DISKNM'], must_exist=True, create_path=False, delete_before=False)
+
+    main_config = config['main']
+    logger.debug(f'main_config: {main_config}')
+    for key,item in main_config.items():
+        rt_dictionary[key] = str(item)
+
+    rt_config = parse_yaml('rt_config.yml')
+    logger.debug(f'rt_config: {rt_config}')
+    for key,item in rt_config.items():
+        test_dictionary[key] = str(item)
+
     process_path(rt_config['RUNDIR_ROOT'], must_exist=False, create_path=True, delete_before=False)
     process_path(rt_config['RTPWD'], must_exist=True, create_path=False, delete_before=False)
     process_path(rt_config['INPUTDATA_ROOT'], must_exist=True, create_path=False, delete_before=False)
