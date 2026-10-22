@@ -799,8 +799,8 @@ case ${MACHINE_ID} in
     PTMP="/lfs/h2/emc/ptmp"
     SCHEDULER="pbs"
     ;;
-  wcoss3)
-    echo "rt.sh: Setting up wcoss3..."
+  nimbus)
+    echo "rt.sh: Setting up NIMBUS..."
     if [[ "${ECFLOW:-false}" == true ]] ; then
       module use /lfs/work/alexander_richert/stack/spack-stack/envs/nco-core-gcc-11.5.0/modules_flat/Core
       module load python
