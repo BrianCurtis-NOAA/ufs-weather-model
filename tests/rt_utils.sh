@@ -703,7 +703,7 @@ ecflow_run() {
         #shellcheck disable=SC2029
         ssh "${ECF_HOST}" "bash -l -c \"module load ecflow && export ECF_HOST=${ECF_HOST} && ${ECFLOW_START} -p ${ECF_PORT}\""
         ;;
-      wcoss3)
+      nimbus)
         #shellcheck disable=SC2029
         # ssh "${ECF_HOST}" "bash -l -c \"${MOD_USE_STATEMENT} && ${ECFLOW_START} -p ${ECF_PORT}\""
         ${MOD_USE_STATEMENT} && ${ECFLOW_START} -p ${ECF_PORT}
